@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   title: "Edsel's Cake Shop & Catering Services",
   description:
     "Cakes and catering in Cebu for birthdays, weddings, baptisms, and gatherings. Serbisyo ug Lami Para sa Tanan.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/image.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
