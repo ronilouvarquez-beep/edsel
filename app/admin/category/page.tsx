@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -15,6 +16,7 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { createCategory, listCategories, type CategoryRecord } from "@/app/actions/categories";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,46 +30,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const initialCategories = [
-  {
-    id: 1,
-    name: "Cakes",
-    description: "Custom cakes and celebration desserts",
-    items: 3,
-    categoryTypes: ["Food"] as CategoryType[],
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Food trays",
-    description: "Savory food packages for sharing",
-    items: 2,
-    categoryTypes: ["Food"] as CategoryType[],
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Decorations",
-    description: "Venue styling and event setup",
-    items: 3,
-    categoryTypes: ["Decoration"] as CategoryType[],
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "Catering Buffet",
-    description: "Buffet packages for larger events",
-    items: 3,
-    categoryTypes: ["Food"] as CategoryType[],
-    status: "Active",
-  },
-];
-
 type CategoryType = "Food" | "Decoration";
-type Category = Omit<(typeof initialCategories)[number], "categoryTypes"> & {
-  categoryTypes?: CategoryType[];
-  skirtColors?: string[];
+type Category = {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  colors: string[];
+  categoryTypes?: string[];
+  items: number;
+  status: string;
 };
+
+function toCategory(record: CategoryRecord): Category {
+  return {
+    id: record.id,
+    name: record.name,
+    description: record.description,
+    color: record.color,
+    colors: record.colors,
+    categoryTypes: record.category_type ? [record.category_type] : [],
+    items: 0,
+    status: "Active",
+  };
+}
 type ColumnKey = "name" | "description" | "categoryType" | "status";
 const columnLabels: Record<ColumnKey, string> = {
   name: "Category",
@@ -77,7 +63,7 @@ const columnLabels: Record<ColumnKey, string> = {
 };
 
 export default function CategoryPage() {
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [page, setPage] = useState(1);
@@ -88,6 +74,17 @@ export default function CategoryPage() {
     Record<ColumnKey, boolean>
   >({ name: true, description: true, categoryType: true, status: true });
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    listCategories().then(({ data, error }) => {
+      if (error) {
+        toast.error("Failed to load categories.", { description: error });
+        return;
+      }
+      setCategories(data.map(toCategory));
+    });
+  }, []);
+
   const query = search.trim().toLowerCase();
   const filtered = categories.filter(
     (category) =>
@@ -118,19 +115,42 @@ export default function CategoryPage() {
     setPage(1);
   }
 
-  function addCategory(category: Omit<Category, "id">) {
-    setCategories((current) => [
-      ...current,
-      { ...category, id: Math.max(...current.map((item) => item.id), 0) + 1 },
-    ]);
+  async function addCategory(input: {
+    category_name: string;
+    description: string;
+    colors: string[];
+    category_type: string | null;
+  }) {
+    const toastId = toast.loading("Adding category…");
+    const { data, error } = await createCategory(input);
+
+    if (error || !data) {
+      toast.error("Failed to add category.", { id: toastId, description: error ?? undefined });
+      return false;
+    }
+
+    setCategories((current) => [toCategory(data), ...current]);
     setShowCreate(false);
+    setPage(1);
+    toast.success(`${data.name} added.`, { id: toastId });
+    return true;
   }
 
-  function refreshCategories() {
+  async function refreshCategories() {
+    const toastId = toast.loading("Refreshing…");
+    const { data, error } = await listCategories();
+
+    if (error) {
+      toast.error("Failed to load categories.", { id: toastId, description: error });
+      return;
+    }
+
+    setCategories(data.map(toCategory));
     setSearch("");
     setStatusFilter("All");
     setSortColumn(null);
     setPage(1);
+    toast.success("Categories refreshed.", { id: toastId });
   }
 
   return (
@@ -274,7 +294,20 @@ export default function CategoryPage() {
                       >
                         {visibleColumns.name && (
                           <td className="px-4 py-3 font-medium">
-                            {category.name}
+                            <span className="inline-flex items-center gap-2">
+                              {category.colors.length > 0 && (
+                                <span className="inline-flex items-center" aria-hidden="true">
+                                  {category.colors.map((color) => (
+                                    <span
+                                      key={color}
+                                      className="-mr-1 size-3.5 rounded-full border last:mr-0"
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  ))}
+                                </span>
+                              )}
+                              {category.name}
+                            </span>
                           </td>
                         )}
                         {visibleColumns.description && (
@@ -392,37 +425,37 @@ function CreateCategoryModal({
   onCreate,
 }: {
   onClose: () => void;
-  onCreate: (category: Omit<Category, "id">) => void;
+  onCreate: (input: {
+    category_name: string;
+    description: string;
+    colors: string[];
+    category_type: string | null;
+  }) => Promise<boolean>;
 }) {
   const [name, setName] = useState("");
-  const [categoryTypes, setCategoryTypes] = useState<CategoryType[]>([]);
-  const [skirtColors, setSkirtColors] = useState<string[]>([]);
+  const [categoryType, setCategoryType] = useState<CategoryType | "">("");
   const [colorToAdd, setColorToAdd] = useState("#000000");
+  const [colors, setColors] = useState<string[]>([]);
   const [description, setDescription] = useState("");
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    onCreate({
-      name,
-      categoryTypes: categoryTypes.length ? categoryTypes : undefined,
-      skirtColors: skirtColors.length ? skirtColors : undefined,
-      description,
-      items: 0,
-      status: "Active",
-    });
-  }
+  const [submitting, setSubmitting] = useState(false);
 
   function addColor() {
-    if (!skirtColors.includes(colorToAdd))
-      setSkirtColors((current) => [...current, colorToAdd]);
+    if (!colors.includes(colorToAdd)) {
+      setColors((current) => [...current, colorToAdd]);
+    }
   }
 
-  function toggleCategoryType(type: CategoryType) {
-    setCategoryTypes((current) =>
-      current.includes(type)
-        ? current.filter((item) => item !== type)
-        : [...current, type],
-    );
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    const added = await onCreate({
+      category_name: name,
+      description,
+      colors,
+      category_type: categoryType || null,
+    });
+    setSubmitting(false);
+    if (!added) return;
   }
 
   return (
@@ -447,7 +480,7 @@ function CreateCategoryModal({
               Add category
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Category management
+              Saved to the categories table
             </p>
           </div>
           <button
@@ -472,20 +505,20 @@ function CreateCategoryModal({
           <fieldset className="grid gap-3 rounded-lg border p-3">
             <legend className="px-1 text-sm font-medium">Category type</legend>
             <p className="text-xs text-muted-foreground">
-              Select all types that apply.
+              Choose Food or Decoration.
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
               {(["Food", "Decoration"] as CategoryType[]).map((type) => (
                 <label
                   key={type}
-                  className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${categoryTypes.length > 0 && !categoryTypes.includes(type) ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"
                 >
                   <input
-                    type="checkbox"
-                    checked={categoryTypes.includes(type)}
-                    onChange={() => toggleCategoryType(type)}
-                    disabled={categoryTypes.length > 0 && !categoryTypes.includes(type)}
-                    className="size-4 rounded-full accent-primary"
+                    type="radio"
+                    name="category_type"
+                    checked={categoryType === type}
+                    onChange={() => setCategoryType(type)}
+                    className="size-4 accent-primary"
                   />
                   {type}
                 </label>
@@ -493,11 +526,9 @@ function CreateCategoryModal({
             </div>
           </fieldset>
           <fieldset className="grid gap-3 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">
-              (optional) Skirt Color
-            </legend>
+            <legend className="px-1 text-sm font-medium">(optional) Color</legend>
             <p className="text-xs text-muted-foreground">
-              Choose one or more colors for this category.
+              Add one or more colors for this category.
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -505,26 +536,18 @@ function CreateCategoryModal({
                 value={colorToAdd}
                 onChange={(event) => setColorToAdd(event.target.value)}
                 className="size-9 cursor-pointer rounded border-0 bg-transparent p-0"
-                aria-label="Choose a skirt color"
+                aria-label="Choose a category color"
               />
               <span className="font-mono text-xs uppercase text-muted-foreground">
                 {colorToAdd}
               </span>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onPress={addColor}
-              >
+              <Button type="button" size="sm" variant="outline" onPress={addColor}>
                 <PlusIcon /> Add color
               </Button>
             </div>
-            {skirtColors.length > 0 && (
-              <div
-                className="flex flex-wrap gap-2"
-                aria-label="Selected skirt colors"
-              >
-                {skirtColors.map((color) => (
+            {colors.length > 0 && (
+              <div className="flex flex-wrap gap-2" aria-label="Selected colors">
+                {colors.map((color) => (
                   <span
                     key={color}
                     className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs"
@@ -537,11 +560,7 @@ function CreateCategoryModal({
                     <span className="font-mono uppercase">{color}</span>
                     <button
                       type="button"
-                      onClick={() =>
-                        setSkirtColors((current) =>
-                          current.filter((item) => item !== color),
-                        )
-                      }
+                      onClick={() => setColors((current) => current.filter((item) => item !== color))}
                       className="ml-1 text-muted-foreground hover:text-foreground"
                       aria-label={`Remove ${color}`}
                     >
@@ -558,15 +577,14 @@ function CreateCategoryModal({
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder="Describe this category"
-              required
             />
           </label>
           <div className="mt-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" onPress={onClose}>
+            <Button type="button" variant="outline" isDisabled={submitting} onPress={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              <PlusIcon /> Create category
+            <Button type="submit" isDisabled={submitting}>
+              <PlusIcon /> {submitting ? "Saving…" : "Create category"}
             </Button>
           </div>
         </form>

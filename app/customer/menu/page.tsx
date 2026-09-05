@@ -2,9 +2,11 @@
 
 import dynamic from "next/dynamic"
 import { createPortal } from "react-dom"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpRightIcon, CakeSliceIcon, ChefHatIcon, ChevronRightIcon, CoffeeIcon, EyeIcon, SearchIcon, ShoppingCartIcon, UtensilsIcon, XIcon } from "lucide-react"
 
+import { listCustomerCatalog, type CustomerMenuItem } from "@/app/actions/customer-menu"
 import { Badge } from "@/components/ui/badge"
 import { Button, LinkButton } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,48 +18,46 @@ const ReactPhotoSphereViewer = dynamic(
   { ssr: false },
 )
 
-type MenuCategory = "All" | "Cakes" | "Food trays" | "Decorations"
-type MenuItem = { name: string; description: string; price: string; category: Exclude<MenuCategory, "All">; images: string[]; tag?: string }
-
-const menuItems: MenuItem[] = [
-  { name: "Signature chocolate cake", description: "Rich chocolate layers with a smooth ganache finish.", price: "From ₱850", category: "Cakes", tag: "Best seller", images: ["https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1588195538326-c5b1e2c8f2f1?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Ube celebration cake", description: "Soft ube chiffon, creamy filling, and toasted coconut.", price: "From ₱950", category: "Cakes", images: ["https://images.unsplash.com/photo-1558301211-0d8c8ddee6ec?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Fresh fruit shortcake", description: "Light vanilla sponge topped with seasonal fruit.", price: "From ₱1,050", category: "Cakes", images: ["https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1542826438-bd32f43d626f?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Fiesta food tray", description: "A generous spread of savory favorites for sharing.", price: "From ₱1,450", category: "Food trays", tag: "Good for groups", images: ["https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Pasta and chicken tray", description: "Creamy pasta paired with tender roasted chicken.", price: "From ₱1,250", category: "Food trays", images: ["https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Dessert table styling", description: "A styled sweets table with stands, labels, and accents.", price: "From ₱2,500", category: "Decorations", tag: "Customizable", images: ["https://images.unsplash.com/photo-1519225421980-715cb0215AED?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Birthday cake setup", description: "A cheerful backdrop and cake table for a memorable reveal.", price: "From ₱1,800", category: "Decorations", images: ["https://images.unsplash.com/photo-1530103862676-de8c9deaffa1?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Wedding venue styling", description: "A panoramic venue setup for an elegant celebration.", price: "From ₱12,000", category: "Decorations", tag: "360 view", images: ["/panorama.png", "/beach.png"] },
-  { name: "Red velvet layer cake", description: "Classic red velvet with cream cheese frosting.", price: "From ₱980", category: "Cakes", images: ["https://images.unsplash.com/photo-1588195538326-c5b1e2c8f2f1?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Mango graham cake", description: "Chilled mango layers with graham and cream.", price: "From ₱780", category: "Cakes", images: ["https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Lumpiang shanghai tray", description: "Crispy spring rolls ready for sharing.", price: "From ₱850", category: "Food trays", images: ["https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Seafood sharing tray", description: "Grilled fish and shrimp for a generous table.", price: "From ₱2,100", category: "Food trays", images: ["https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=85"] },
-  { name: "Halo-halo dessert cups", description: "Individual halo-halo cups for merienda.", price: "From ₱720", category: "Food trays", images: ["https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=900&q=85"] },
-]
+type MenuFilter = "All" | "Food" | "Occasions"
+type MenuItem = CustomerMenuItem
 
 const PAGE_SIZE = 10
 
-const categories: { label: MenuCategory; icon: typeof CakeSliceIcon }[] = [
+const filters: { label: MenuFilter; icon: typeof CakeSliceIcon }[] = [
   { label: "All", icon: ChefHatIcon },
-  { label: "Cakes", icon: CakeSliceIcon },
-  { label: "Food trays", icon: UtensilsIcon },
-  { label: "Decorations", icon: CoffeeIcon },
+  { label: "Food", icon: UtensilsIcon },
+  { label: "Occasions", icon: CoffeeIcon },
 ]
 
 export default function CustomerMenuPage() {
-  const [category, setCategory] = useState<MenuCategory>("All")
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [category, setCategory] = useState<MenuFilter>("All")
   const [search, setSearch] = useState("")
   const [cart, setCart] = useState<string[]>([])
   const [showCart, setShowCart] = useState(false)
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    listCustomerCatalog().then(({ data, error }) => {
+      if (error) toast.error("Failed to load the menu.", { description: error })
+      setMenuItems(data)
+      setLoading(false)
+    })
+  }, [])
+
   const filteredItems = menuItems.filter((item) => {
-    const matchesCategory = category === "All" || item.category === category
+    const matchesCategory =
+      category === "All" ||
+      (category === "Food" && item.kind === "food") ||
+      (category === "Occasions" && item.kind === "occasion")
     const query = search.trim().toLowerCase()
     const matchesSearch = !query || `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query)
     return matchesCategory && matchesSearch
   })
   const visibleItems = filteredItems.slice(0, visibleCount)
   const hasMore = visibleCount < filteredItems.length
+  const cartItems = menuItems.filter((item) => cart.includes(item.id))
 
   return (
     <main className="flex flex-1 flex-col bg-muted/20">
@@ -84,14 +84,14 @@ export default function CustomerMenuPage() {
           <div className="min-h-64 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=85')" }} aria-label="Decorated cakes and pastries" />
         </section>
 
-        <section className="flex flex-col gap-4"><div><p className="text-sm font-medium text-primary">Explore the menu</p><h2 className="mt-1 text-2xl font-semibold tracking-tight">Choose what fits your celebration</h2></div><div className="flex flex-wrap gap-2">{categories.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => { setCategory(label); setVisibleCount(PAGE_SIZE) }} className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${category === label ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`} aria-pressed={category === label}><Icon className="size-4" />{label}</button>)}</div></section>
+        <section className="flex flex-col gap-4"><div><p className="text-sm font-medium text-primary">Explore the menu</p><h2 className="mt-1 text-2xl font-semibold tracking-tight">Choose what fits your celebration</h2></div><div className="flex flex-wrap gap-2">{filters.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => { setCategory(label); setVisibleCount(PAGE_SIZE) }} className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${category === label ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`} aria-pressed={category === label}><Icon className="size-4" />{label}</button>)}</div></section>
 
-        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleItems.map((item) => <MenuCard key={item.name} item={item} inCart={cart.includes(item.name)} onAddToCart={() => setCart((current) => current.includes(item.name) ? current.filter((name) => name !== item.name) : [...current, item.name])} />)}{filteredItems.length === 0 && <div className="rounded-xl border border-dashed bg-background p-10 text-center sm:col-span-2 lg:col-span-3"><p className="font-medium">No menu items found</p><p className="mt-1 text-sm text-muted-foreground">Try a different search or category.</p></div>}</section>
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleItems.map((item) => <MenuCard key={item.id} item={item} inCart={cart.includes(item.id)} onAddToCart={() => setCart((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} />)}{!loading && filteredItems.length === 0 && <div className="rounded-xl border border-dashed bg-background p-10 text-center sm:col-span-2 lg:col-span-3"><p className="font-medium">No menu items found</p><p className="mt-1 text-sm text-muted-foreground">Try a different search or category, or add items in the admin menu and occasions pages.</p></div>}</section>
         {filteredItems.length > PAGE_SIZE && <div className="flex justify-center"><Button variant="outline" onPress={() => setVisibleCount((current) => hasMore ? current + PAGE_SIZE : PAGE_SIZE)}>{hasMore ? `See more (${filteredItems.length - visibleCount} left)` : "Show less"}</Button></div>}
 
         <div className="sticky bottom-4 z-20 flex justify-end"><button type="button" onClick={() => setShowCart(true)} className="relative flex size-12 items-center justify-center rounded-full border bg-background/95 text-primary shadow-lg backdrop-blur transition hover:bg-muted" aria-label={`View cart with ${cart.length} item${cart.length === 1 ? "" : "s"}`}><ShoppingCartIcon className="size-5" />{cart.length > 0 && <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">{cart.length}</span>}</button></div>
 
-        {showCart && <MenuCartModal items={cart} onRemove={(name) => setCart((current) => current.filter((item) => item !== name))} onClose={() => setShowCart(false)} />}
+        {showCart && <MenuCartModal items={cartItems} onRemove={(id) => setCart((current) => current.filter((item) => item !== id))} onClose={() => setShowCart(false)} />}
 
         <section className="grid gap-4 md:grid-cols-3"><QuickLink icon={<CakeSliceIcon />} title="Custom cakes" description="Have a design in mind?" href="/customer/messages" /><QuickLink icon={<UtensilsIcon />} title="Catering requests" description="Build a spread for your guests." href="/customer/messages" /><QuickLink icon={<ChevronRightIcon />} title="My reservations" description="Review your upcoming plans." href="/customer/reservations" /></section>
       </div>
@@ -102,7 +102,7 @@ export default function CustomerMenuPage() {
 function MenuCard({ item, inCart, onAddToCart }: { item: MenuItem; inCart: boolean; onAddToCart: () => void }) {
   const [activeImage, setActiveImage] = useState(0)
   const [showPanorama, setShowPanorama] = useState(false)
-  const isDecoration = item.category === "Decorations"
+  const isDecoration = item.kind === "occasion"
   const previousImage = () => setActiveImage((current) => (current - 1 + item.images.length) % item.images.length)
   const nextImage = () => setActiveImage((current) => (current + 1) % item.images.length)
 
@@ -113,10 +113,8 @@ function MenuPanoramaModal({ item, imageIndex, onPrevious, onNext, onClose, onSe
   return createPortal(<div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-3" role="presentation" onClick={onClose}><section role="dialog" aria-modal="true" aria-labelledby="menu-panorama-title" className="w-full max-w-5xl overflow-hidden rounded-3xl border bg-background shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-4 border-b p-4"><div><p className="text-sm text-muted-foreground">360° panoramic view</p><h2 id="menu-panorama-title" className="mt-1 text-xl font-semibold">{item.name}</h2></div><button type="button" onClick={onClose} className="flex size-9 items-center justify-center rounded-lg hover:bg-muted" aria-label="Close 360 view"><XIcon className="size-4" /></button></div><div className="relative h-[55vh] min-h-[320px] w-full"><ReactPhotoSphereViewer src={item.images[imageIndex]} height="100%" width="100%" navbar={["zoom", "move", "fullscreen"]} /><button type="button" onClick={onPrevious} className="absolute top-1/2 left-4 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/75" aria-label="Previous panorama image"><ArrowLeftIcon className="size-5" /></button><button type="button" onClick={onNext} className="absolute top-1/2 right-4 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/75" aria-label="Next panorama image"><ArrowRightIcon className="size-5" /></button></div><div className="flex items-center justify-between gap-3 border-t p-4"><p className="text-sm text-muted-foreground">Click and drag to explore the decoration venue.</p><div className="flex items-center gap-2">{item.images.map((image, index) => <button key={image} type="button" onClick={() => onSelectImage(index)} className={`h-2.5 w-2.5 rounded-full ${imageIndex === index ? "bg-primary" : "bg-muted-foreground/40"}`} aria-label={`View panorama image ${index + 1}`} />)}</div></div></section></div>, document.body)
 }
 
-function MenuCartModal({ items, onRemove, onClose }: { items: string[]; onRemove: (name: string) => void; onClose: () => void }) {
-  const cartItems = menuItems.filter((item) => items.includes(item.name))
-
-  return createPortal(<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="presentation" onClick={onClose}><section role="dialog" aria-modal="true" aria-labelledby="menu-cart-title" className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border bg-background p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-start justify-between gap-4"><div><p className="text-sm text-muted-foreground">Your selected menus</p><h2 id="menu-cart-title" className="mt-1 text-xl font-semibold">Cart ({cartItems.length})</h2></div><button type="button" onClick={onClose} className="flex size-9 items-center justify-center rounded-lg hover:bg-muted" aria-label="Close cart"><XIcon className="size-4" /></button></div>{cartItems.length === 0 ? <div className="py-10 text-center"><ShoppingCartIcon className="mx-auto size-10 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">Your cart is empty.</p></div> : <div className="mt-6 grid max-h-[min(55vh,28rem)] gap-3 overflow-y-auto pr-1">{cartItems.map((item) => <div key={item.name} className="flex items-center gap-3 rounded-lg border p-3"><div className="size-14 shrink-0 rounded-md bg-cover bg-center" style={{ backgroundImage: `url('${item.images[0]}')` }} aria-label={item.name} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.name}</p><p className="text-xs text-muted-foreground">{item.price}</p></div><button type="button" onClick={() => onRemove(item.name)} className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">Remove</button></div>)}</div>}<div className="mt-6 flex justify-end"><button type="button" onClick={onClose} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Continue browsing</button></div></section></div>, document.body)
+function MenuCartModal({ items, onRemove, onClose }: { items: MenuItem[]; onRemove: (id: string) => void; onClose: () => void }) {
+  return createPortal(<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="presentation" onClick={onClose}><section role="dialog" aria-modal="true" aria-labelledby="menu-cart-title" className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl border bg-background p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}><div className="flex items-start justify-between gap-4"><div><p className="text-sm text-muted-foreground">Your selected menus</p><h2 id="menu-cart-title" className="mt-1 text-xl font-semibold">Cart ({items.length})</h2></div><button type="button" onClick={onClose} className="flex size-9 items-center justify-center rounded-lg hover:bg-muted" aria-label="Close cart"><XIcon className="size-4" /></button></div>{items.length === 0 ? <div className="py-10 text-center"><ShoppingCartIcon className="mx-auto size-10 text-muted-foreground" /><p className="mt-3 text-sm text-muted-foreground">Your cart is empty.</p></div> : <div className="mt-6 grid max-h-[min(55vh,28rem)] gap-3 overflow-y-auto pr-1">{items.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-lg border p-3"><div className="size-14 shrink-0 rounded-md bg-cover bg-center" style={{ backgroundImage: `url('${item.images[0]}')` }} aria-label={item.name} /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{item.name}</p><p className="text-xs text-muted-foreground">{item.price} · {item.kind === "occasion" ? "Occasion" : "Food"}</p></div><button type="button" onClick={() => onRemove(item.id)} className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">Remove</button></div>)}</div>}<div className="mt-6 flex justify-end"><button type="button" onClick={onClose} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Continue browsing</button></div></section></div>, document.body)
 }
 
 function QuickLink({ icon, title, description, href }: { icon: React.ReactNode; title: string; description: string; href: string }) {

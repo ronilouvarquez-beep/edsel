@@ -24,14 +24,17 @@ export function MessageComposer({
   placeholder,
   hint,
   onSend,
+  disabled = false,
 }: {
   placeholder: string
   hint: string
-  onSend: (payload: { text: string; attachments: MessageAttachment[] }) => void
+  disabled?: boolean
+  onSend: (payload: { text: string; attachments: MessageAttachment[] }) => void | Promise<void>
 }) {
   const [draft, setDraft] = useState("")
   const [attachments, setAttachments] = useState<MessageAttachment[]>([])
   const [emojiOpen, setEmojiOpen] = useState(false)
+  const [sending, setSending] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const emojiRef = useRef<HTMLDivElement>(null)
@@ -77,14 +80,19 @@ export function MessageComposer({
     })
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const text = draft.trim()
-    if (!text && attachments.length === 0) return
-    onSend({ text, attachments })
-    setDraft("")
-    setAttachments([])
-    setEmojiOpen(false)
+    if (disabled || sending || (!text && attachments.length === 0)) return
+    setSending(true)
+    try {
+      await onSend({ text, attachments })
+      setDraft("")
+      setAttachments([])
+      setEmojiOpen(false)
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -143,7 +151,7 @@ export function MessageComposer({
           className="min-h-10 resize-none"
           rows={1}
         />
-        <Button type="submit" size="icon" aria-label="Send message" isDisabled={!draft.trim() && attachments.length === 0}>
+        <Button type="submit" size="icon" aria-label="Send message" isDisabled={disabled || sending || (!draft.trim() && attachments.length === 0)}>
           <SendIcon />
         </Button>
       </div>

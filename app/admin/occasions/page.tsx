@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -10,6 +11,9 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { listCategories, type CategoryRecord } from "@/app/actions/categories";
+import { createOccasion, listOccasions, type OccasionRecord } from "@/app/actions/occasions";
+import { createClient } from "@/lib/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,200 +27,56 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 const PAGE_SIZE = 10;
-const occasionNames = ["Birthday", "Wedding", "Baptism"] as const;
-type OccasionName = (typeof occasionNames)[number];
+const FALLBACK_IMAGE = "/panorama.png";
 type DecorationStatus = "Available" | "Not available";
-type Decoration = {
-  id: number;
-  name: string;
-  description: string;
-  price: string;
-  images: string[];
-  includes: string[];
-  status: DecorationStatus;
-  clothesColors?: string[];
-};
-type DecorationGroups = Record<OccasionName, Decoration[]>;
+type Decoration = OccasionRecord & { occasion: string };
 
-const initialDecorations: DecorationGroups = {
-  Birthday: [
-    {
-      id: 1,
-      name: "Birthday cake setup",
-      description: "A cheerful backdrop and cake table for a memorable reveal.",
-      price: "From ₱1,800",
-      images: [
-        "https://images.unsplash.com/photo-1530103862676-de8c9deaffa1?auto=format&fit=crop&w=1000&q=85",
-        "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=1000&q=85",
-      ],
-      includes: [
-        "Birthday backdrop",
-        "Cake table styling",
-        "Color theme accents",
-      ],
-      status: "Available",
-    },
-    {
-      id: 4,
-      name: "Kids party balloon wall",
-      description: "A bright balloon wall and dessert table for children's parties.",
-      price: "From ₱2,200",
-      images: ["https://images.unsplash.com/photo-1530103862676-de8c9deaffa1?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Balloon wall", "Dessert table cloth", "Number stand"],
-      status: "Available",
-    },
-    {
-      id: 5,
-      name: "Garden birthday picnic",
-      description: "Outdoor picnic styling with blankets, florals, and a cake stand.",
-      price: "From ₱3,400",
-      images: ["https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Picnic setup", "Cake stand", "Floral accents"],
-      status: "Available",
-    },
-    {
-      id: 6,
-      name: "Neon glow party",
-      description: "A modern night setup with neon signs and photo corners.",
-      price: "From ₱2,900",
-      images: ["https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Neon sign", "Photo corner", "LED lights"],
-      status: "Available",
-    },
-  ],
-  Wedding: [
-    {
-      id: 2,
-      name: "Wedding venue styling",
-      description: "An elegant venue setup for ceremony and reception moments.",
-      price: "From ₱12,000",
-      images: ["/panorama.png", "/beach.png"],
-      includes: [
-        "Ceremony backdrop",
-        "Floral aisle styling",
-        "Reception table setup",
-      ],
-      status: "Available",
-    },
-    {
-      id: 7,
-      name: "Garden wedding aisle",
-      description: "Floral aisle markers and a soft ceremony arch.",
-      price: "From ₱9,800",
-      images: ["https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Ceremony arch", "Aisle florals", "Chair accents"],
-      status: "Available",
-    },
-    {
-      id: 8,
-      name: "Reception sweetheart table",
-      description: "A styled sweetheart table with florals and lighting.",
-      price: "From ₱6,500",
-      images: ["https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Sweetheart table", "Centerpiece", "Fairy lights"],
-      status: "Available",
-    },
-    {
-      id: 9,
-      name: "Coastal wedding setup",
-      description: "Light, airy styling for a beach or garden reception.",
-      price: "From ₱11,500",
-      images: ["https://images.unsplash.com/photo-1507504031003-b417219a0fde?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Driftwood accents", "White drapes", "Lanterns"],
-      status: "Available",
-    },
-  ],
-  Baptism: [
-    {
-      id: 3,
-      name: "Baptism celebration setup",
-      description:
-        "A thoughtful, light decoration package for a family gathering.",
-      price: "From ₱2,800",
-      images: [
-        "https://images.unsplash.com/photo-1519225421980-715cb0215AED?auto=format&fit=crop&w=1000&q=85",
-        "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=1000&q=85",
-      ],
-      includes: [
-        "Simple backdrop",
-        "Cake table accents",
-        "White and blue styling",
-      ],
-      status: "Available",
-    },
-    {
-      id: 10,
-      name: "Ivory christening table",
-      description: "Soft ivory linens and a gentle cake table for family photos.",
-      price: "From ₱2,400",
-      images: ["https://images.unsplash.com/photo-1519225421980-715cb0215AED?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Ivory linens", "Cake table", "Floral spray"],
-      status: "Available",
-    },
-    {
-      id: 11,
-      name: "Garden baptism picnic",
-      description: "A light outdoor merienda setup after the ceremony.",
-      price: "From ₱3,100",
-      images: ["https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Picnic tables", "Umbrella styling", "Welcome sign"],
-      status: "Available",
-    },
-    {
-      id: 12,
-      name: "Gold and white backdrop",
-      description: "A formal gold-and-white photo backdrop for family portraits.",
-      price: "From ₱2,650",
-      images: ["https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Photo backdrop", "Balloon garland", "Name sign"],
-      status: "Available",
-    },
-    {
-      id: 13,
-      name: "Church reception styling",
-      description: "Simple, respectful styling for a post-ceremony reception hall.",
-      price: "From ₱3,800",
-      images: ["https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=85"],
-      includes: ["Hall drapes", "Centerpieces", "Welcome table"],
-      status: "Available",
-    },
-  ],
-};
+function toDecoration(record: OccasionRecord): Decoration {
+  return {
+    ...record,
+    occasion: record.category,
+    images: record.images.length ? record.images : [FALLBACK_IMAGE],
+  };
+}
 
 export default function OccasionsPage() {
-  const [selectedOccasion] = useState<OccasionName>("Birthday");
-  const [decorations, setDecorations] = useState(initialDecorations);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [decorations, setDecorations] = useState<Decoration[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const currentDecorations = Object.entries(decorations)
-    .flatMap(([occasion, items]) =>
-      items.map((item) => ({ ...item, occasion })),
-    )
-    .filter((decoration) =>
-      `${decoration.name} ${decoration.description} ${decoration.occasion}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-    );
+
+  useEffect(() => {
+    Promise.all([listOccasions(), listCategories()]).then(([occasions, categoryList]) => {
+      if (occasions.error) toast.error("Failed to load decorations.", { description: occasions.error });
+      if (categoryList.error) toast.error("Failed to load categories.", { description: categoryList.error });
+      setDecorations(occasions.data.map(toDecoration));
+      setCategories(categoryList.data);
+    });
+  }, []);
+
+  const currentDecorations = decorations.filter((decoration) =>
+    `${decoration.name} ${decoration.description} ${decoration.occasion}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
   const visibleDecorations = currentDecorations.slice(0, visibleCount);
   const hasMore = visibleCount < currentDecorations.length;
 
-  function addDecoration(
-    category: OccasionName,
-    decoration: Omit<Decoration, "id">,
-  ) {
-    const nextId =
-      Math.max(
-        ...Object.values(decorations)
-          .flat()
-          .map((item) => item.id),
-        0,
-      ) + 1;
-    setDecorations((current) => ({
-      ...current,
-      [category]: [...current[category], { ...decoration, id: nextId }],
-    }));
+  async function addDecoration(formData: FormData) {
+    const toastId = toast.loading("Adding decoration…");
+    const { data, error } = await createOccasion(formData);
+
+    if (error || !data) {
+      toast.error("Failed to add decoration.", { id: toastId, description: error ?? undefined });
+      return false;
+    }
+
+    setDecorations((current) => [toDecoration(data), ...current]);
+    setVisibleCount(PAGE_SIZE);
     setShowAdd(false);
+    toast.success(`${data.name} added.`, { id: toastId });
+    return true;
   }
 
   return (
@@ -277,9 +137,7 @@ export default function OccasionsPage() {
               <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <PlusIcon />
               </span>
-              <span className="mt-3 font-medium">
-                Add decoration to {selectedOccasion}
-              </span>
+              <span className="mt-3 font-medium">Add decoration</span>
               <span className="mt-1 text-sm text-muted-foreground">
                 Create another setup option
               </span>
@@ -305,7 +163,7 @@ export default function OccasionsPage() {
       </div>
       {showAdd && (
         <AddDecorationModal
-          occasion={selectedOccasion}
+          categories={categories}
           onClose={() => setShowAdd(false)}
           onAdd={addDecoration}
         />
@@ -444,15 +302,17 @@ function ColorPalette({
 }
 
 function AddDecorationModal({
-  occasion,
+  categories,
   onClose,
   onAdd,
 }: {
-  occasion: OccasionName;
+  categories: CategoryRecord[];
   onClose: () => void;
-  onAdd: (category: OccasionName, decoration: Omit<Decoration, "id">) => void;
+  onAdd: (formData: FormData) => Promise<boolean>;
 }) {
-  const [category, setCategory] = useState<OccasionName>(occasion);
+  const decorationCategories = categories.filter((category) => !category.category_type || category.category_type === "Decoration");
+  const categoryOptions = decorationCategories.length ? decorationCategories : categories;
+  const [categoryId, setCategoryId] = useState(categoryOptions[0]?.id ?? "");
   const [status, setStatus] = useState<DecorationStatus>("Available");
   const [clothesColors, setClothesColors] = useState<string[]>([]);
   const [colorToAdd, setColorToAdd] = useState("#000000");
@@ -462,6 +322,7 @@ function AddDecorationModal({
   const [includedItems, setIncludedItems] = useState([""]);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(
     () => () =>
@@ -477,19 +338,29 @@ function AddDecorationModal({
     ]);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onAdd(category, {
-      name,
-      status,
-      clothesColors: clothesColors.length ? clothesColors : undefined,
-      description,
-      price: `From ₱${price}`,
-      images: images.length
-        ? images.map((file) => URL.createObjectURL(file))
-        : ["/panorama.png"],
-      includes: includedItems.map((item) => item.trim()).filter(Boolean),
-    });
+    if (!categoryId) {
+      toast.error("Select a category.");
+      return;
+    }
+
+    setSubmitting(true);
+    const formData = new FormData();
+    const { data } = await createClient().auth.getUser();
+    formData.set("category_id", categoryId);
+    formData.set("decoration_name", name.trim());
+    formData.set("description", description.trim());
+    formData.set("price", price);
+    formData.set("status", status === "Not available" ? "not available" : "available");
+    formData.set("clothes_color", clothesColors.join(","));
+    formData.set("included_items", includedItems.map((item) => item.trim()).filter(Boolean).join("\n"));
+    if (data.user?.id) formData.set("created_by", data.user.id);
+    images.forEach((file) => formData.append("images", file));
+
+    const added = await onAdd(formData);
+    setSubmitting(false);
+    if (!added) return;
   }
 
   function updateIncluded(index: number, value: string) {
@@ -527,7 +398,7 @@ function AddDecorationModal({
               Add decoration
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Create a decoration option for any occasion
+              Saved to the occasions table
             </p>
           </div>
           <button
@@ -544,14 +415,14 @@ function AddDecorationModal({
             <label className="grid gap-2 text-sm font-medium">
               Category
               <select
-                value={category}
-                onChange={(event) =>
-                  setCategory(event.target.value as OccasionName)
-                }
+                value={categoryId}
+                onChange={(event) => setCategoryId(event.target.value)}
+                required
                 className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
               >
-                {occasionNames.map((item) => (
-                  <option key={item}>{item}</option>
+                <option value="">{categoryOptions.length ? "Select category" : "No categories found"}</option>
+                {categoryOptions.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </select>
             </label>
@@ -690,11 +561,11 @@ function AddDecorationModal({
             ))}
           </div>
           <div className="mt-2 flex justify-end gap-2">
-            <Button type="button" variant="outline" onPress={onClose}>
+            <Button type="button" variant="outline" isDisabled={submitting} onPress={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              <PlusIcon /> Add decoration
+            <Button type="submit" isDisabled={submitting || !categoryOptions.length}>
+              <PlusIcon /> {submitting ? "Saving…" : "Add decoration"}
             </Button>
           </div>
         </form>
