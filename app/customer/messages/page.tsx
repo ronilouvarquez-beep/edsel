@@ -9,13 +9,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Bubble } from "@/components/ui/bubble"
 import { Message, MessageAvatar, MessageContent, MessageFooter, MessageHeader } from "@/components/ui/message"
 import { MessageComposer } from "@/components/message-composer"
+import { MessageReactions } from "@/components/message-reactions"
 import { useChatScroll } from "@/hooks/use-chat-scroll"
 
 export default function CustomerMessagesPage() {
-  const { profile, contacts, messages, activeId, activeContact, loading, sending, selectContact, send } = useMessaging()
+  const { profile, contacts, messages, activeId, activeContact, loading, sending, selectContact, send, toggleReaction } = useMessaging()
   const [search, setSearch] = useState("")
   const visibleContacts = contacts.filter((contact) => `${contact.name} ${contact.role} ${contact.email}`.toLowerCase().includes(search.toLowerCase()))
   const conversationRef = useChatScroll(`${activeId}-${messages.length}`)
@@ -80,8 +81,10 @@ export default function CustomerMessagesPage() {
                           </MessageAvatar>
                           <MessageContent>
                             <MessageHeader>{mine ? "You" : activeContact.name}</MessageHeader>
-                            <Bubble className={mine ? "bg-primary text-primary-foreground" : ""}>
-                              <BubbleContent>{message.message}</BubbleContent>
+                            <Bubble variant={mine ? "default" : "muted"} align={mine ? "end" : "start"}>
+                              <MessageReactions messageId={message.id} userId={profile?.id ?? ""} reactions={message.reactions} align={mine ? "end" : "start"} onToggle={toggleReaction}>
+                                {message.message}
+                              </MessageReactions>
                             </Bubble>
                             <MessageFooter>{formatMessageTime(message.createdAt)}</MessageFooter>
                           </MessageContent>

@@ -18,6 +18,11 @@ export type MessageContact = MessagingProfile & {
   unread: number
 }
 
+export type MessageReaction = {
+  userId: string
+  emoji: string
+}
+
 export type ConversationMessage = {
   id: string
   senderId: string
@@ -25,6 +30,7 @@ export type ConversationMessage = {
   message: string
   isRead: boolean
   createdAt: string
+  reactions: MessageReaction[]
 }
 
 type UserRow = {
@@ -43,10 +49,12 @@ type MessageRow = {
   message: string
   is_read: boolean
   created_at: string
+  message_reactions: unknown
 }
 
 const USER_COLUMNS = "id, first_name, middle_name, last_name, email, role"
-const MESSAGE_COLUMNS = "id, sender_id, receiver_id, message, is_read, created_at"
+const MESSAGE_COLUMNS = "id, sender_id, receiver_id, message, is_read, created_at, message_reactions"
+const ALLOWED_REACTIONS = new Set(["👍", "❤️", "😂", "🎉", "🙏"])
 
 const CAN_MESSAGE: Record<MessageRole, MessageRole[]> = {
   customer: ["staff", "admin"],
@@ -82,6 +90,7 @@ function toProfile(row: UserRow): MessagingProfile | null {
 }
 
 function toMessage(row: MessageRow): ConversationMessage {
+  const reactions = Array.isArray(row.message_reactions) ? row.message_reactions : []
   return {
     id: row.id,
     senderId: row.sender_id,
@@ -89,6 +98,11 @@ function toMessage(row: MessageRow): ConversationMessage {
     message: row.message,
     isRead: row.is_read,
     createdAt: row.created_at,
+    reactions: reactions.filter((reaction): reaction is MessageReaction => {
+      if (!reaction || typeof reaction !== "object") return false
+      const item = reaction as Record<string, unknown>
+      return typeof item.userId === "string" && typeof item.emoji === "string" && ALLOWED_REACTIONS.has(item.emoji)
+    }),
   }
 }
 
@@ -215,5 +229,49 @@ export async function sendMessage(senderId: string, receiverId: string, message:
     return { data: null, error: error?.message ?? "Failed to send the message." }
   }
 
+  return { data: toMessage(data as MessageRow), error: null }
+}
+
+export async function toggleMessageReaction(userId: string, messageId: string, emoji: string) {
+  if (!userId || !messageId || !ALLOWED_REACTIONS.has(emoji)) {
+    return { data: null, error: "That reaction is not available." }
+  }
+
+  const { profile, error: profileError } = await loadProfile(userId)
+  if (!profile) return { data: null, error: profileError ?? "Your account was not found." }
+
+  const admin = createAdminClient()
+  const { data: existing, error: messageError } = await admin
+    .from("messages")
+    .select(MESSAGE_COLUMNS)
+    .eq("id", messageId)
+    .maybeSingle()
+
+  if (messageError) return { data: null, error: messageError.message }
+  if (!existing) return { data: null, error: "That message was not found." }
+
+  const message = existing as MessageRow
+  if (message.sender_id !== userId && message.receiver_id !== userId) {
+    return { data: null, error: "You cannot react to this message." }
+  }
+
+  const reactions = Array.isArray(message.message_reactions) ? message.message_reactions.filter((reaction): reaction is MessageReaction => {
+    if (!reaction || typeof reaction !== "object") return false
+    const item = reaction as Record<string, unknown>
+    return typeof item.userId === "string" && typeof item.emoji === "string" && ALLOWED_REACTIONS.has(item.emoji)
+  }) : []
+  const reactionIndex = reactions.findIndex((reaction) => reaction.userId === userId && reaction.emoji === emoji)
+  const nextReactions = reactionIndex >= 0
+    ? reactions.filter((_, index) => index !== reactionIndex)
+    : [...reactions, { userId, emoji }]
+
+  const { data, error } = await admin
+    .from("messages")
+    .update({ message_reactions: nextReactions })
+    .eq("id", messageId)
+    .select(MESSAGE_COLUMNS)
+    .single()
+
+  if (error || !data) return { data: null, error: error?.message ?? "Failed to update the reaction." }
   return { data: toMessage(data as MessageRow), error: null }
 }

@@ -9,6 +9,7 @@ import {
   listMessageContacts,
   markConversationRead,
   sendMessage,
+  toggleMessageReaction,
   type ConversationMessage,
   type MessageContact,
   type MessageRole,
@@ -89,12 +90,13 @@ export function useMessaging() {
 
   useEffect(() => {
     if (!profile || !activeId) {
-      setMessages([])
       return
     }
 
     let cancelled = false
     Promise.all([
+      // Conversation loading is an external async synchronization.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       refreshConversation(profile.id, activeId),
       markConversationRead(profile.id, activeId),
     ]).then(() => {
@@ -142,6 +144,16 @@ export function useMessaging() {
     await refreshContacts(profile.id)
   }
 
+  async function toggleReaction(messageId: string, emoji: string) {
+    if (!profile) return
+    const { data, error } = await toggleMessageReaction(profile.id, messageId, emoji)
+    if (error || !data) {
+      toast.error("Failed to update reaction.", { description: error ?? undefined })
+      return
+    }
+    setMessages((current) => current.map((message) => message.id === data.id ? data : message))
+  }
+
   return {
     profile,
     contacts,
@@ -152,5 +164,6 @@ export function useMessaging() {
     sending,
     selectContact,
     send,
+    toggleReaction,
   }
 }

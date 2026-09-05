@@ -9,13 +9,14 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Bubble } from "@/components/ui/bubble"
 import { Message, MessageAvatar, MessageContent, MessageFooter, MessageHeader } from "@/components/ui/message"
 import { MessageComposer } from "@/components/message-composer"
+import { MessageReactions } from "@/components/message-reactions"
 import { useChatScroll } from "@/hooks/use-chat-scroll"
 
 export default function StaffMessagesPage() {
-  const { profile, contacts, messages, activeId, activeContact, loading, sending, selectContact, send } = useMessaging()
+  const { profile, contacts, messages, activeId, activeContact, loading, sending, selectContact, send, toggleReaction } = useMessaging()
   const [search, setSearch] = useState("")
   const visibleContacts = contacts.filter((contact) => `${contact.name} ${contact.role} ${contact.email} ${contact.lastMessage}`.toLowerCase().includes(search.toLowerCase()))
   const unread = contacts.reduce((total, contact) => total + contact.unread, 0)
@@ -82,7 +83,7 @@ export default function StaffMessagesPage() {
                     <CheckCircle2Icon className="size-4 text-emerald-600" /> Conversation with {activeContact.name}
                   </div>
 
-                  <div ref={conversationRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
+                  <div ref={conversationRef} className="min-h-0 flex-1 space-y-7 overflow-y-auto p-4 md:p-6">
                     {messages.map((message) => {
                       const mine = message.senderId === profile?.id
                       return (
@@ -92,10 +93,12 @@ export default function StaffMessagesPage() {
                           </MessageAvatar>
                           <MessageContent>
                             <MessageHeader>{mine ? "You · Staff" : activeContact.name}</MessageHeader>
-                            <Bubble className={mine ? "bg-primary text-primary-foreground" : ""}>
-                              <BubbleContent>{message.message}</BubbleContent>
+                            <Bubble variant={mine ? "default" : "muted"} align={mine ? "end" : "start"}>
+                              <MessageReactions messageId={message.id} userId={profile?.id ?? ""} reactions={message.reactions} align={mine ? "end" : "start"} onToggle={toggleReaction}>
+                                {message.message}
+                              </MessageReactions>
                             </Bubble>
-                            <MessageFooter>{formatMessageTime(message.createdAt)}</MessageFooter>
+                            <MessageFooter className="pt-3">{formatMessageTime(message.createdAt)}</MessageFooter>
                           </MessageContent>
                         </Message>
                       )

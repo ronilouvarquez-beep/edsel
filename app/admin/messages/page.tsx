@@ -9,16 +9,17 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Bubble } from "@/components/ui/bubble"
 import { Message, MessageAvatar, MessageContent, MessageFooter, MessageHeader } from "@/components/ui/message"
 import { MessageComposer } from "@/components/message-composer"
+import { MessageReactions } from "@/components/message-reactions"
 import { useChatScroll } from "@/hooks/use-chat-scroll"
 import type { MessageRole } from "@/app/actions/messages"
 
 type Channel = "all" | "customer" | "staff"
 
 export default function AdminMessagesPage() {
-  const { profile, contacts, messages, activeId, activeContact, loading, sending, selectContact, send } = useMessaging()
+  const { profile, contacts, messages, activeId, activeContact, loading, sending, selectContact, send, toggleReaction } = useMessaging()
   const [search, setSearch] = useState("")
   const [channel, setChannel] = useState<Channel>("all")
   const visibleContacts = useMemo(() => contacts.filter((contact) => {
@@ -117,8 +118,10 @@ export default function AdminMessagesPage() {
                           </MessageAvatar>
                           <MessageContent>
                             <MessageHeader>{senderName(mine, activeContact.role)}</MessageHeader>
-                            <Bubble className={mine ? "bg-primary text-primary-foreground" : activeContact.role === "staff" ? "border border-amber-500/20 bg-amber-500/10" : ""}>
-                              <BubbleContent>{message.message}</BubbleContent>
+                            <Bubble variant={mine ? "default" : activeContact.role === "staff" ? "tinted" : "muted"} align={mine ? "end" : "start"}>
+                              <MessageReactions messageId={message.id} userId={profile?.id ?? ""} reactions={message.reactions} align={mine ? "end" : "start"} onToggle={toggleReaction}>
+                                {message.message}
+                              </MessageReactions>
                             </Bubble>
                             <MessageFooter>{formatMessageTime(message.createdAt)}</MessageFooter>
                           </MessageContent>
