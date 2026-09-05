@@ -16,7 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { CalendarCheckIcon, FileChartColumnIcon, LayoutDashboardIcon, PackageIcon, PartyPopperIcon, ReceiptTextIcon, Settings2Icon, ShoppingBagIcon, TagsIcon, UsersIcon } from "lucide-react"
+import { CalendarCheckIcon, FileChartColumnIcon, LayoutDashboardIcon, MessageCircleIcon, PackageIcon, PartyPopperIcon, ReceiptTextIcon, Settings2Icon, ShoppingBagIcon, TagsIcon, UsersIcon } from "lucide-react"
 
 const data = {
   user: {
@@ -36,6 +36,7 @@ const data = {
   ],
   navSecondary: [
     { title: "Settings", url: "/admin/settings", icon: <Settings2Icon /> },
+    { title: "Messages", url: "/admin/messages", icon: <MessageCircleIcon /> },
   ],
   documents: [
     { name: "Reports", url: "/admin/documents/reports", icon: <FileChartColumnIcon /> },

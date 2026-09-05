@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react"
+import { ChangeEvent, FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { createUser, deleteUser, listUsers, updateUser } from "@/app/actions/users"
 import {
@@ -8,7 +8,10 @@ import {
   ArrowUpIcon,
   ArrowUpDownIcon,
   Columns3Icon,
+  EyeIcon,
+  EyeOffIcon,
   FilterIcon,
+  ImagePlusIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
@@ -19,9 +22,12 @@ import {
   UserIcon,
   UsersIcon,
   WrenchIcon,
+  XIcon,
 } from "lucide-react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { emptyAddressValue, PhAddressFields, type AddressValue } from "@/components/ph-address-fields"
+import { parseAddress } from "@/lib/ph-address"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -57,6 +63,7 @@ type User = {
   email: string
   phone: string
   role: Role
+  avatar: string
 }
 
 function displayName(user: Pick<User, "first_name" | "middle_name" | "last_name">) {
@@ -77,6 +84,7 @@ function toUser(row: Record<string, unknown>): User {
     email: String(row.email ?? ""),
     phone: String(row.phone_number ?? ""),
     role: toDbRole(String(row.role ?? "customer")),
+    avatar: String(row.avatar_url ?? row.avatar ?? ""),
   }
 }
 
@@ -103,7 +111,7 @@ function RoleIcon({ role }: { role: Role | string }) {
   return <UserIcon className="size-3" />
 }
 
-const EMPTY_FORM = { firstName: "", middleName: "", lastName: "", address: "", email: "", phone: "", password: "", role: "customer" as Role }
+const EMPTY_FORM = { firstName: "", middleName: "", lastName: "", address: "", email: "", phone: "", password: "", confirmPassword: "", role: "customer" as Role, imagePreview: "" }
 
 export function UsersTable() {
   const [users, setUsers]               = useState<User[]>([])
@@ -117,9 +125,15 @@ export function UsersTable() {
     { name: true, address: true, phone: true, role: true }
   )
   const [formData, setFormData]   = useState(EMPTY_FORM)
+  const [addressValue, setAddressValue] = useState<AddressValue>(emptyAddressValue())
+  const [savedAddress, setSavedAddress] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const addDialogRef    = useRef<HTMLDialogElement>(null)
   const deleteDialogRef = useRef<HTMLDialogElement>(null)
@@ -158,10 +172,19 @@ export function UsersTable() {
   const pageCount  = Math.max(1, Math.ceil(sorted.length / pageSize))
   const paginated  = sorted.slice((page - 1) * pageSize, page * pageSize)
 
+  function closeAddDialog() {
+    addDialogRef.current?.close()
+  }
+
   function closeOnBackdrop(event: MouseEvent<HTMLDialogElement>) {
-    if (event.target === event.currentTarget) {
-      event.currentTarget.close()
-    }
+    const dialog = event.currentTarget
+    const rect = dialog.getBoundingClientRect()
+    const clickedInside =
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom
+    if (!clickedInside) dialog.close()
   }
 
   function sortBy(col: ColumnKey) {
@@ -174,12 +197,20 @@ export function UsersTable() {
   function openAdd() {
     setEditingId(null)
     setFormData(EMPTY_FORM)
+    setAddressValue(emptyAddressValue())
+    setSavedAddress("")
     setEmailError("")
+    setPasswordError("")
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+    if (imageInputRef.current) imageInputRef.current.value = ""
     addDialogRef.current?.showModal()
   }
 
   /* ── open edit dialog ────────────────────────────────────── */
   function openEdit(user: User) {
+    if (user.role === "admin") return
+    const parsed = parseAddress(user.address)
     setEditingId(user.id)
     setFormData({
       firstName:  user.first_name,
@@ -189,10 +220,38 @@ export function UsersTable() {
       email:      user.email,
       phone:      user.phone,
       password:   "",
+      confirmPassword: "",
       role:       user.role,
+      imagePreview: user.avatar,
     })
+    setAddressValue({
+      ...emptyAddressValue(),
+      street: parsed.street,
+      province: parsed.province,
+      municipality: parsed.municipality,
+      barangay: parsed.barangay,
+      address: user.address,
+    })
+    setSavedAddress(user.address)
     setEmailError("")
+    setPasswordError("")
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+    if (imageInputRef.current) imageInputRef.current.value = ""
     addDialogRef.current?.showModal()
+  }
+
+  function onImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (formData.imagePreview.startsWith("blob:")) URL.revokeObjectURL(formData.imagePreview)
+    field("imagePreview", URL.createObjectURL(file))
+  }
+
+  function clearImage() {
+    if (formData.imagePreview.startsWith("blob:")) URL.revokeObjectURL(formData.imagePreview)
+    field("imagePreview", "")
+    if (imageInputRef.current) imageInputRef.current.value = ""
   }
 
   const [submitting, setSubmitting] = useState(false)
@@ -212,13 +271,25 @@ export function UsersTable() {
       return
     }
 
+    if (!addressValue.province || !addressValue.municipality || !addressValue.barangay) {
+      toast.error("Select a province, municipality, and barangay.")
+      return
+    }
+
     const firstName = get("firstName")
     const middleName = get("middleName")
     const lastName = get("lastName")
     const fullName = [firstName, middleName, lastName].filter(Boolean).join(" ")
     const password = get("password")
+    const confirmPassword = get("confirmPassword")
     if (!editingId && password.length < 8) {
+      setPasswordError("Password must be at least 8 characters.")
       toast.error("Password must be at least 8 characters.")
+      return
+    }
+    if (!editingId && password !== confirmPassword) {
+      setPasswordError("Passwords do not match.")
+      toast.error("Passwords do not match.")
       return
     }
 
@@ -226,7 +297,7 @@ export function UsersTable() {
       first_name: firstName,
       middle_name: middleName || null,
       last_name: lastName,
-      address: get("address"),
+      address: addressValue.address || get("address"),
       email,
       phone_number: get("phone"),
       role: toDbRole(get("role")),
@@ -239,6 +310,7 @@ export function UsersTable() {
       email,
       phone: payload.phone_number,
       role: payload.role,
+      avatar: formData.imagePreview,
     }
 
     setSubmitting(true)
@@ -263,7 +335,7 @@ export function UsersTable() {
         toast.error("Failed to add user.", { id: toastId, description: error })
         return
       }
-      setUsers((cur) => [data ? toUser(data) : { id: crypto.randomUUID(), ...localUser }, ...cur])
+      setUsers((cur) => [data ? { ...toUser(data), avatar: formData.imagePreview } : { id: crypto.randomUUID(), ...localUser }, ...cur])
       setPage(1)
       toast.success(`${fullName} added as ${ROLE_LABELS[payload.role]}.`, { id: toastId })
     }
@@ -293,6 +365,7 @@ export function UsersTable() {
   }
 
   function openDelete(user: User) {
+    if (user.role === "admin") return
     setDeleteTarget(user)
     deleteDialogRef.current?.showModal()
   }
@@ -318,6 +391,7 @@ export function UsersTable() {
   function field(name: keyof typeof EMPTY_FORM, value: string) {
     setFormData((prev) => ({ ...prev, [name]: value }))
     if (name === "email") setEmailError("")
+    if (name === "password" || name === "confirmPassword") setPasswordError("")
   }
 
   /* ════════════════════════════════════════════════════════ */
@@ -417,6 +491,7 @@ export function UsersTable() {
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-2">
                         <Avatar size="sm">
+                          {user.avatar && <AvatarImage src={user.avatar} alt={displayName(user)} />}
                           <AvatarFallback>{initials(user)}</AvatarFallback>
                         </Avatar>
                         <span>
@@ -439,21 +514,27 @@ export function UsersTable() {
 
                   {/* Row actions */}
                   <td className="px-2 py-3 text-right">
-                    <DropdownMenuTrigger>
-                      <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+                    {user.role === "admin" ? (
+                      <Button variant="ghost" size="icon-sm" isDisabled aria-label="Admin actions are disabled">
                         <MoreHorizontalIcon />
                       </Button>
-                      <DropdownMenu placement="bottom end">
-                        <DropdownMenuLabel>{displayName(user)}</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem id="edit"   onAction={() => openEdit(user)}>
-                          <PencilIcon className="size-3.5" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem id="delete" onAction={() => openDelete(user)} className="text-destructive focus:text-destructive">
-                          <Trash2Icon className="size-3.5" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenu>
-                    </DropdownMenuTrigger>
+                    ) : (
+                      <DropdownMenuTrigger>
+                        <Button variant="ghost" size="icon-sm" aria-label="Row actions">
+                          <MoreHorizontalIcon />
+                        </Button>
+                        <DropdownMenu placement="bottom end">
+                          <DropdownMenuLabel>{displayName(user)}</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem id="edit"   onAction={() => openEdit(user)}>
+                            <PencilIcon className="size-3.5" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem id="delete" onAction={() => openDelete(user)} className="text-destructive focus:text-destructive">
+                            <Trash2Icon className="size-3.5" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenu>
+                      </DropdownMenuTrigger>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -493,16 +574,55 @@ export function UsersTable() {
       </div>
 
       {/* ── Add / Edit dialog ──────────────────────────────────── */}
-      <dialog ref={addDialogRef} onClick={closeOnBackdrop} className="m-auto w-[min(760px,calc(100vw-2rem))] max-h-[min(92vh,880px)] overflow-hidden rounded-xl border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/50">
-        <form onSubmit={submitUser} autoComplete="off" className="flex max-h-[min(92vh,880px)] flex-col">
-          <div className="border-b px-6 py-5">
-            <h2 className="text-xl font-semibold">{editingId ? "Edit user" : "Add new user"}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {editingId ? "Update the account information below." : "Fill in the details to create a new account."}
-            </p>
+      <dialog ref={addDialogRef} onClick={closeOnBackdrop} className="m-auto w-[min(760px,calc(100vw-2rem))] max-h-[min(90vh,880px)] overflow-hidden rounded-xl border bg-background p-0 text-foreground shadow-2xl backdrop:bg-black/50">
+        <form onSubmit={submitUser} autoComplete="off" className="grid max-h-[min(90vh,880px)] grid-rows-[auto_minmax(0,1fr)_auto]">
+          <div className="flex items-start justify-between gap-4 border-b px-6 py-5">
+            <div>
+              <h2 className="text-xl font-semibold">{editingId ? "Edit user" : "Add new user"}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {editingId ? "Update the account information below." : "Fill in the details to create a new account."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={closeAddDialog}
+              className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close form"
+            >
+              <XIcon className="size-4" />
+            </button>
           </div>
 
-          <FieldGroup className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto p-6 sm:grid-cols-2 lg:grid-cols-3">
+          <FieldGroup className="grid grid-cols-1 content-start gap-4 overflow-y-auto overscroll-contain p-6 sm:grid-cols-2 lg:grid-cols-3">
+            <Field className="sm:col-span-2 lg:col-span-3">
+              <FieldLabel htmlFor="user-image">Upload image</FieldLabel>
+              <div className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-4 sm:flex-row sm:items-center">
+                <Avatar size="lg" className="size-16">
+                  {formData.imagePreview && <AvatarImage src={formData.imagePreview} alt="User photo preview" />}
+                  <AvatarFallback>
+                    <ImagePlusIcon className="size-5" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <input
+                    ref={imageInputRef}
+                    id="user-image"
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={onImageChange}
+                    className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2.5 text-sm file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, or WebP. This photo appears on the user list.</p>
+                </div>
+                {formData.imagePreview && (
+                  <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove uploaded image" onPress={clearImage}>
+                    <XIcon />
+                  </Button>
+                )}
+              </div>
+            </Field>
+
             <Field>
               <FieldLabel htmlFor="user-first-name">First name</FieldLabel>
               <Input id="user-first-name" name="firstName" placeholder="Juan" required value={formData.firstName} onChange={(e) => field("firstName", e.target.value)} />
@@ -543,25 +663,68 @@ export function UsersTable() {
               </select>
             </Field>
 
-            <Field className="sm:col-span-2 lg:col-span-3">
-              <FieldLabel htmlFor="user-address">Address</FieldLabel>
-              <Input id="user-address" name="address" placeholder="Street, City, Province" required value={formData.address} onChange={(e) => field("address", e.target.value)} />
-            </Field>
+            <PhAddressFields
+              value={addressValue}
+              onChange={setAddressValue}
+              preloadFrom={savedAddress || undefined}
+            />
 
             {!editingId && (
-              <Field className="sm:col-span-2 lg:col-span-3">
-                <FieldLabel htmlFor="user-password">Password</FieldLabel>
-                <Input
-                  id="user-password"
-                  name="password"
-                  type="password"
-                  placeholder="At least 8 characters"
-                  required
-                  minLength={8}
-                  value={formData.password}
-                  onChange={(e) => field("password", e.target.value)}
-                />
-              </Field>
+              <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2 lg:col-span-3">
+                <Field>
+                  <FieldLabel htmlFor="user-password">Password</FieldLabel>
+                  <div className="relative">
+                    <Input
+                      id="user-password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="At least 8 characters"
+                      required
+                      minLength={8}
+                      value={formData.password}
+                      onChange={(e) => field("password", e.target.value)}
+                      className="pr-10"
+                      aria-invalid={!!passwordError || undefined}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((current) => !current)}
+                      className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                    </button>
+                  </div>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="user-confirm-password">Confirm password</FieldLabel>
+                  <div className="relative">
+                    <Input
+                      id="user-confirm-password"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Re-enter password"
+                      required
+                      minLength={8}
+                      value={formData.confirmPassword}
+                      onChange={(e) => field("confirmPassword", e.target.value)}
+                      className={`pr-10 ${passwordError ? "border-destructive focus-visible:ring-destructive/30" : ""}`}
+                      aria-invalid={!!passwordError || undefined}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((current) => !current)}
+                      className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                      title={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    >
+                      {showConfirmPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                    </button>
+                  </div>
+                  {passwordError && <p className="mt-1 text-xs text-destructive">{passwordError}</p>}
+                </Field>
+              </div>
             )}
 
             <div className="rounded-lg border bg-muted/40 p-4 sm:col-span-2 lg:col-span-3">
@@ -574,8 +737,8 @@ export function UsersTable() {
             </div>
           </FieldGroup>
 
-          <div className="flex justify-end gap-2 border-t px-6 py-4">
-            <Button type="button" variant="outline" isDisabled={submitting} onPress={() => addDialogRef.current?.close()}>Cancel</Button>
+          <div className="flex justify-end gap-2 border-t bg-background px-6 py-4">
+            <Button type="button" variant="outline" formNoValidate isDisabled={submitting} onPress={closeAddDialog}>Cancel</Button>
             <Button type="submit" isDisabled={submitting}>{submitting ? "Saving…" : editingId ? "Save changes" : "Add User"}</Button>
           </div>
         </form>

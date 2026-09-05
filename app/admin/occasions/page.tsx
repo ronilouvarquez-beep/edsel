@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+const PAGE_SIZE = 10;
 const occasionNames = ["Birthday", "Wedding", "Baptism"] as const;
 type OccasionName = (typeof occasionNames)[number];
 type DecorationStatus = "Available" | "Not available";
@@ -55,6 +56,33 @@ const initialDecorations: DecorationGroups = {
       ],
       status: "Available",
     },
+    {
+      id: 4,
+      name: "Kids party balloon wall",
+      description: "A bright balloon wall and dessert table for children's parties.",
+      price: "From ₱2,200",
+      images: ["https://images.unsplash.com/photo-1530103862676-de8c9deaffa1?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Balloon wall", "Dessert table cloth", "Number stand"],
+      status: "Available",
+    },
+    {
+      id: 5,
+      name: "Garden birthday picnic",
+      description: "Outdoor picnic styling with blankets, florals, and a cake stand.",
+      price: "From ₱3,400",
+      images: ["https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Picnic setup", "Cake stand", "Floral accents"],
+      status: "Available",
+    },
+    {
+      id: 6,
+      name: "Neon glow party",
+      description: "A modern night setup with neon signs and photo corners.",
+      price: "From ₱2,900",
+      images: ["https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Neon sign", "Photo corner", "LED lights"],
+      status: "Available",
+    },
   ],
   Wedding: [
     {
@@ -68,6 +96,33 @@ const initialDecorations: DecorationGroups = {
         "Floral aisle styling",
         "Reception table setup",
       ],
+      status: "Available",
+    },
+    {
+      id: 7,
+      name: "Garden wedding aisle",
+      description: "Floral aisle markers and a soft ceremony arch.",
+      price: "From ₱9,800",
+      images: ["https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Ceremony arch", "Aisle florals", "Chair accents"],
+      status: "Available",
+    },
+    {
+      id: 8,
+      name: "Reception sweetheart table",
+      description: "A styled sweetheart table with florals and lighting.",
+      price: "From ₱6,500",
+      images: ["https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Sweetheart table", "Centerpiece", "Fairy lights"],
+      status: "Available",
+    },
+    {
+      id: 9,
+      name: "Coastal wedding setup",
+      description: "Light, airy styling for a beach or garden reception.",
+      price: "From ₱11,500",
+      images: ["https://images.unsplash.com/photo-1507504031003-b417219a0fde?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Driftwood accents", "White drapes", "Lanterns"],
       status: "Available",
     },
   ],
@@ -89,6 +144,42 @@ const initialDecorations: DecorationGroups = {
       ],
       status: "Available",
     },
+    {
+      id: 10,
+      name: "Ivory christening table",
+      description: "Soft ivory linens and a gentle cake table for family photos.",
+      price: "From ₱2,400",
+      images: ["https://images.unsplash.com/photo-1519225421980-715cb0215AED?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Ivory linens", "Cake table", "Floral spray"],
+      status: "Available",
+    },
+    {
+      id: 11,
+      name: "Garden baptism picnic",
+      description: "A light outdoor merienda setup after the ceremony.",
+      price: "From ₱3,100",
+      images: ["https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Picnic tables", "Umbrella styling", "Welcome sign"],
+      status: "Available",
+    },
+    {
+      id: 12,
+      name: "Gold and white backdrop",
+      description: "A formal gold-and-white photo backdrop for family portraits.",
+      price: "From ₱2,650",
+      images: ["https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Photo backdrop", "Balloon garland", "Name sign"],
+      status: "Available",
+    },
+    {
+      id: 13,
+      name: "Church reception styling",
+      description: "Simple, respectful styling for a post-ceremony reception hall.",
+      price: "From ₱3,800",
+      images: ["https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=85"],
+      includes: ["Hall drapes", "Centerpieces", "Welcome table"],
+      status: "Available",
+    },
   ],
 };
 
@@ -97,6 +188,7 @@ export default function OccasionsPage() {
   const [decorations, setDecorations] = useState(initialDecorations);
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const currentDecorations = Object.entries(decorations)
     .flatMap(([occasion, items]) =>
       items.map((item) => ({ ...item, occasion })),
@@ -106,6 +198,8 @@ export default function OccasionsPage() {
         .toLowerCase()
         .includes(search.toLowerCase()),
     );
+  const visibleDecorations = currentDecorations.slice(0, visibleCount);
+  const hasMore = visibleCount < currentDecorations.length;
 
   function addDecoration(
     category: OccasionName,
@@ -157,7 +251,10 @@ export default function OccasionsPage() {
                 <SearchIcon className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                 <Input
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
                   placeholder="Search decorations"
                   className="h-8 pl-8 text-sm"
                   aria-label="Search decorations"
@@ -169,7 +266,7 @@ export default function OccasionsPage() {
             </div>
           </div>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {currentDecorations.map((decoration) => (
+            {visibleDecorations.map((decoration) => (
               <DecorationCard key={decoration.id} decoration={decoration} />
             ))}
             <button
@@ -188,6 +285,22 @@ export default function OccasionsPage() {
               </span>
             </button>
           </div>
+          {currentDecorations.length > PAGE_SIZE && (
+            <div className="mt-6 flex justify-center">
+              <Button
+                variant="outline"
+                onPress={() =>
+                  setVisibleCount((current) =>
+                    hasMore ? current + PAGE_SIZE : PAGE_SIZE,
+                  )
+                }
+              >
+                {hasMore
+                  ? `See more (${currentDecorations.length - visibleCount} left)`
+                  : "Show less"}
+              </Button>
+            </div>
+          )}
         </section>
       </div>
       {showAdd && (

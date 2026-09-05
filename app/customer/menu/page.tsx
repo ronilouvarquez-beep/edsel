@@ -6,7 +6,7 @@ import { useState } from "react"
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUpRightIcon, CakeSliceIcon, ChefHatIcon, ChevronRightIcon, CoffeeIcon, EyeIcon, SearchIcon, ShoppingCartIcon, UtensilsIcon, XIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
-import { LinkButton } from "@/components/ui/button"
+import { Button, LinkButton } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
@@ -28,7 +28,14 @@ const menuItems: MenuItem[] = [
   { name: "Dessert table styling", description: "A styled sweets table with stands, labels, and accents.", price: "From ₱2,500", category: "Decorations", tag: "Customizable", images: ["https://images.unsplash.com/photo-1519225421980-715cb0215AED?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=900&q=85"] },
   { name: "Birthday cake setup", description: "A cheerful backdrop and cake table for a memorable reveal.", price: "From ₱1,800", category: "Decorations", images: ["https://images.unsplash.com/photo-1530103862676-de8c9deaffa1?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=900&q=85", "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=900&q=85"] },
   { name: "Wedding venue styling", description: "A panoramic venue setup for an elegant celebration.", price: "From ₱12,000", category: "Decorations", tag: "360 view", images: ["/panorama.png", "/beach.png"] },
+  { name: "Red velvet layer cake", description: "Classic red velvet with cream cheese frosting.", price: "From ₱980", category: "Cakes", images: ["https://images.unsplash.com/photo-1588195538326-c5b1e2c8f2f1?auto=format&fit=crop&w=900&q=85"] },
+  { name: "Mango graham cake", description: "Chilled mango layers with graham and cream.", price: "From ₱780", category: "Cakes", images: ["https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=85"] },
+  { name: "Lumpiang shanghai tray", description: "Crispy spring rolls ready for sharing.", price: "From ₱850", category: "Food trays", images: ["https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=900&q=85"] },
+  { name: "Seafood sharing tray", description: "Grilled fish and shrimp for a generous table.", price: "From ₱2,100", category: "Food trays", images: ["https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=900&q=85"] },
+  { name: "Halo-halo dessert cups", description: "Individual halo-halo cups for merienda.", price: "From ₱720", category: "Food trays", images: ["https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=900&q=85"] },
 ]
+
+const PAGE_SIZE = 10
 
 const categories: { label: MenuCategory; icon: typeof CakeSliceIcon }[] = [
   { label: "All", icon: ChefHatIcon },
@@ -42,12 +49,15 @@ export default function CustomerMenuPage() {
   const [search, setSearch] = useState("")
   const [cart, setCart] = useState<string[]>([])
   const [showCart, setShowCart] = useState(false)
-  const visibleItems = menuItems.filter((item) => {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const filteredItems = menuItems.filter((item) => {
     const matchesCategory = category === "All" || item.category === category
     const query = search.trim().toLowerCase()
     const matchesSearch = !query || `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query)
     return matchesCategory && matchesSearch
   })
+  const visibleItems = filteredItems.slice(0, visibleCount)
+  const hasMore = visibleCount < filteredItems.length
 
   return (
     <main className="flex flex-1 flex-col bg-muted/20">
@@ -66,7 +76,7 @@ export default function CustomerMenuPage() {
           </div>
           <div className="relative w-full md:max-w-xs">
             <SearchIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the menu..." aria-label="Search menu" className="h-10 pl-9" />
+            <Input value={search} onChange={(event) => { setSearch(event.target.value); setVisibleCount(PAGE_SIZE) }} placeholder="Search the menu..." aria-label="Search menu" className="h-10 pl-9" />
           </div>
         </header>
         <section className="grid overflow-hidden rounded-2xl bg-[#251b18] text-white lg:grid-cols-[1.1fr_0.9fr]">
@@ -74,9 +84,10 @@ export default function CustomerMenuPage() {
           <div className="min-h-64 bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=85')" }} aria-label="Decorated cakes and pastries" />
         </section>
 
-        <section className="flex flex-col gap-4"><div><p className="text-sm font-medium text-primary">Explore the menu</p><h2 className="mt-1 text-2xl font-semibold tracking-tight">Choose what fits your celebration</h2></div><div className="flex flex-wrap gap-2">{categories.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => setCategory(label)} className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${category === label ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`} aria-pressed={category === label}><Icon className="size-4" />{label}</button>)}</div></section>
+        <section className="flex flex-col gap-4"><div><p className="text-sm font-medium text-primary">Explore the menu</p><h2 className="mt-1 text-2xl font-semibold tracking-tight">Choose what fits your celebration</h2></div><div className="flex flex-wrap gap-2">{categories.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => { setCategory(label); setVisibleCount(PAGE_SIZE) }} className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${category === label ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`} aria-pressed={category === label}><Icon className="size-4" />{label}</button>)}</div></section>
 
-        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleItems.map((item) => <MenuCard key={item.name} item={item} inCart={cart.includes(item.name)} onAddToCart={() => setCart((current) => current.includes(item.name) ? current.filter((name) => name !== item.name) : [...current, item.name])} />)}{visibleItems.length === 0 && <div className="rounded-xl border border-dashed bg-background p-10 text-center sm:col-span-2 lg:col-span-3"><p className="font-medium">No menu items found</p><p className="mt-1 text-sm text-muted-foreground">Try a different search or category.</p></div>}</section>
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleItems.map((item) => <MenuCard key={item.name} item={item} inCart={cart.includes(item.name)} onAddToCart={() => setCart((current) => current.includes(item.name) ? current.filter((name) => name !== item.name) : [...current, item.name])} />)}{filteredItems.length === 0 && <div className="rounded-xl border border-dashed bg-background p-10 text-center sm:col-span-2 lg:col-span-3"><p className="font-medium">No menu items found</p><p className="mt-1 text-sm text-muted-foreground">Try a different search or category.</p></div>}</section>
+        {filteredItems.length > PAGE_SIZE && <div className="flex justify-center"><Button variant="outline" onPress={() => setVisibleCount((current) => hasMore ? current + PAGE_SIZE : PAGE_SIZE)}>{hasMore ? `See more (${filteredItems.length - visibleCount} left)` : "Show less"}</Button></div>}
 
         <div className="sticky bottom-4 z-20 flex justify-end"><button type="button" onClick={() => setShowCart(true)} className="relative flex size-12 items-center justify-center rounded-full border bg-background/95 text-primary shadow-lg backdrop-blur transition hover:bg-muted" aria-label={`View cart with ${cart.length} item${cart.length === 1 ? "" : "s"}`}><ShoppingCartIcon className="size-5" />{cart.length > 0 && <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">{cart.length}</span>}</button></div>
 
