@@ -5,6 +5,7 @@ import Image from "next/image"
 import {
   CalendarCheckIcon,
   CircleUserRoundIcon,
+  ClipboardListIcon,
   HouseIcon,
   MenuIcon,
   MessageCircleHeartIcon,
@@ -27,7 +28,8 @@ import {
 const customerNav = [
   { title: "Overview", url: "/customer", icon: <HouseIcon /> },
   { title: "Browse Menu", url: "/customer/menu", icon: <MenuIcon /> },
-  { title: "My Reservations", url: "/customer/reservations", icon: <CalendarCheckIcon /> },
+  { title: "Reservation", url: "/customer/reservations", icon: <CalendarCheckIcon /> },
+  { title: "Track my Order", url: "/customer/track", icon: <ClipboardListIcon /> },
   { title: "Messages", url: "/customer/messages", icon: <MessageCircleHeartIcon /> },
 ]
 

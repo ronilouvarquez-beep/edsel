@@ -11,9 +11,9 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 
 const staffNav = [
   { title: "Overview", url: "/staff", icon: <HouseIcon /> },
-  { title: "Reservations", url: "/staff/reservations", icon: <CalendarCheckIcon /> },
+  { title: "All reservation", url: "/staff/reservations", icon: <CalendarCheckIcon /> },
   { title: "Schedule", url: "/staff/schedule", icon: <CalendarDaysIcon /> },
-  { title: "Preparation tasks", url: "/staff/tasks", icon: <ClipboardListIcon /> },
+  { title: "Set tracker", url: "/staff/tasks", icon: <ClipboardListIcon /> },
   { title: "Messages", url: "/staff/messages", icon: <MessageCircleIcon /> },
 ]
 
