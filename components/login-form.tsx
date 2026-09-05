@@ -51,8 +51,15 @@ export function LoginForm({
       return
     }
 
-    const databaseRole = data.user ? await getUserRole(data.user.id) : { role: null }
-    router.push(getDashboardPath(databaseRole.role ?? data.user?.user_metadata?.role))
+    try {
+      const databaseRole = data.user ? await getUserRole(data.user.id) : { role: null }
+      const nextPath = getDashboardPath(databaseRole.role ?? data.user?.user_metadata?.role)
+      router.replace(nextPath)
+      router.refresh()
+    } catch (lookupError) {
+      setError(lookupError instanceof Error ? lookupError.message : "Could not finish login.")
+      setIsLoading(false)
+    }
   }
 
   return (

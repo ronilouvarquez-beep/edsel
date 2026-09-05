@@ -7,7 +7,7 @@ export function getDashboardPath(role: unknown) {
     case "admin":
     case "administrator":
     case "superadmin":
-      return "/admin"
+      return "/dashboard"
     case "staff":
       return "/staff"
     default:
