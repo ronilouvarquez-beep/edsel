@@ -22,9 +22,9 @@ export const metadata: Metadata = {
   description:
     "Cakes and catering in Cebu for birthdays, weddings, baptisms, and gatherings. Serbisyo ug Lami Para sa Tanan.",
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/image.png",
+    icon: "/logo.jpeg",
+    shortcut: "/logo.jpeg",
+    apple: "/logo.jpeg",
   },
 };
 

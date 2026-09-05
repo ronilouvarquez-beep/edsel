@@ -144,3 +144,40 @@
     @apply font-sans;
   }
 }
+
+.login-grid-background {
+  background-color: var(--background);
+}
+
+.login-grid-lines {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  background-image: linear-gradient(to right, color-mix(in oklch, var(--foreground) 10%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 10%, transparent) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse at center, black 25%, transparent 80%);
+  pointer-events: none;
+}
+
+.login-grid-light {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 0 12px 4px white;
+  animation: login-grid-run 7s linear infinite;
+}
+
+.login-grid-light-one { top: 0; left: 22%; }
+.login-grid-light-two { top: 48%; left: 0; animation-delay: -2.5s; }
+.login-grid-light-three { top: 0; left: 76%; animation-delay: -5s; }
+
+@keyframes login-grid-run {
+  0% { transform: translate(0, 0); opacity: 0; }
+  8% { opacity: 1; }
+  42% { transform: translate(0, 100vh); opacity: 1; }
+  50% { transform: translate(0, 100vh); opacity: 0; }
+  50.1% { transform: translate(0, 0); }
+  100% { opacity: 0; }
+}

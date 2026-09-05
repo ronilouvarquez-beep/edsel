@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { FormEvent, useState } from "react"
+import { EyeIcon, EyeOffIcon } from "lucide-react"
 import { getUserRole } from "@/app/actions/auth"
 import { cn } from "@/lib/utils"
 import { getDashboardPath } from "@/lib/auth"
@@ -30,6 +31,7 @@ export function LoginForm({
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -55,7 +57,7 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
+      <Card className="!bg-background shadow-xl">
         <CardHeader>
           <CardTitle>Login to your account</CardTitle>
           <CardDescription>
@@ -86,13 +88,25 @@ export function LoginForm({
                     Forgot your password?
                   </a>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                  </button>
+                </div>
               </Field>
               <Field>
                 {error && <p className="text-sm text-destructive">{error}</p>}

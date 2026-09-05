@@ -64,7 +64,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   }
 
   return (
-    <Card {...props}>
+    <Card className="!bg-background shadow-xl" {...props}>
       <CardHeader>
         <CardTitle>Create an account</CardTitle>
         <CardDescription>
