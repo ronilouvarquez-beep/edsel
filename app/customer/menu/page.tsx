@@ -12,6 +12,7 @@ import { Button, LinkButton } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage } from "@/components/ui/breadcrumb"
+import { readCustomerCart, writeCustomerCart } from "@/lib/customer-cart"
 
 const ReactPhotoSphereViewer = dynamic(
   () => import("react-photo-sphere-viewer").then((module) => module.ReactPhotoSphereViewer),
@@ -39,12 +40,29 @@ export default function CustomerMenuPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    Promise.resolve().then(() => setCart(readCustomerCart()))
     listCustomerCatalog().then(({ data, error }) => {
       if (error) toast.error("Failed to load the menu.", { description: error })
       setMenuItems(data)
       setLoading(false)
     })
   }, [])
+
+  function toggleCartItem(id: string) {
+    setCart((current) => {
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+      writeCustomerCart(next)
+      return next
+    })
+  }
+
+  function removeCartItem(id: string) {
+    setCart((current) => {
+      const next = current.filter((item) => item !== id)
+      writeCustomerCart(next)
+      return next
+    })
+  }
 
   const filteredItems = menuItems.filter((item) => {
     const matchesCategory =
@@ -86,12 +104,12 @@ export default function CustomerMenuPage() {
 
         <section className="flex flex-col gap-4"><div><p className="text-sm font-medium text-primary">Explore the menu</p><h2 className="mt-1 text-2xl font-semibold tracking-tight">Choose what fits your celebration</h2></div><div className="flex flex-wrap gap-2">{filters.map(({ label, icon: Icon }) => <button key={label} type="button" onClick={() => { setCategory(label); setVisibleCount(PAGE_SIZE) }} className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${category === label ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`} aria-pressed={category === label}><Icon className="size-4" />{label}</button>)}</div></section>
 
-        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleItems.map((item) => <MenuCard key={item.id} item={item} inCart={cart.includes(item.id)} onAddToCart={() => setCart((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id])} />)}{!loading && filteredItems.length === 0 && <div className="rounded-xl border border-dashed bg-background p-10 text-center sm:col-span-2 lg:col-span-3"><p className="font-medium">No menu items found</p><p className="mt-1 text-sm text-muted-foreground">Try a different search or category, or add items in the admin menu and occasions pages.</p></div>}</section>
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleItems.map((item) => <MenuCard key={item.id} item={item} inCart={cart.includes(item.id)} onAddToCart={() => toggleCartItem(item.id)} />)}{!loading && filteredItems.length === 0 && <div className="rounded-xl border border-dashed bg-background p-10 text-center sm:col-span-2 lg:col-span-3"><p className="font-medium">No menu items found</p><p className="mt-1 text-sm text-muted-foreground">Try a different search or category, or add items in the admin menu and occasions pages.</p></div>}</section>
         {filteredItems.length > PAGE_SIZE && <div className="flex justify-center"><Button variant="outline" onPress={() => setVisibleCount((current) => hasMore ? current + PAGE_SIZE : PAGE_SIZE)}>{hasMore ? `See more (${filteredItems.length - visibleCount} left)` : "Show less"}</Button></div>}
 
         <div className="sticky bottom-4 z-20 flex justify-end"><button type="button" onClick={() => setShowCart(true)} className="relative flex size-12 items-center justify-center rounded-full border bg-background/95 text-primary shadow-lg backdrop-blur transition hover:bg-muted" aria-label={`View cart with ${cart.length} item${cart.length === 1 ? "" : "s"}`}><ShoppingCartIcon className="size-5" />{cart.length > 0 && <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">{cart.length}</span>}</button></div>
 
-        {showCart && <MenuCartModal items={cartItems} onRemove={(id) => setCart((current) => current.filter((item) => item !== id))} onClose={() => setShowCart(false)} />}
+        {showCart && <MenuCartModal items={cartItems} onRemove={removeCartItem} onClose={() => setShowCart(false)} />}
 
         <section className="grid gap-4 md:grid-cols-3"><QuickLink icon={<CakeSliceIcon />} title="Custom cakes" description="Have a design in mind?" href="/customer/messages" /><QuickLink icon={<UtensilsIcon />} title="Catering requests" description="Build a spread for your guests." href="/customer/messages" /><QuickLink icon={<ChevronRightIcon />} title="My reservations" description="Review your upcoming plans." href="/customer/reservations" /></section>
       </div>

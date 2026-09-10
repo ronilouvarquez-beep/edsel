@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, FilterIcon, RefreshCwIcon, SearchIcon } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, FilterIcon, MoreHorizontalIcon, RefreshCwIcon, SearchIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -14,42 +14,54 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-
-const initialReservations = [
-  { id: "RES-1042", customer: "Maria Santos", order: "Chocolate Dedication Cake", date: "Sep 06, 2026", guests: 12, status: "Confirmed" },
-  { id: "RES-1041", customer: "Juan Dela Cruz", order: "Birthday Dessert Table", date: "Sep 07, 2026", guests: 30, status: "Pending" },
-  { id: "RES-1040", customer: "Ana Reyes", order: "Wedding Catering Package", date: "Sep 10, 2026", guests: 120, status: "Confirmed" },
-  { id: "RES-1039", customer: "Carlo Garcia", order: "Red Velvet Custom Cake", date: "Sep 12, 2026", guests: 20, status: "Preparing" },
-  { id: "RES-1038", customer: "Liza Tan", order: "Corporate Snack Boxes", date: "Sep 14, 2026", guests: 55, status: "Pending" },
-  { id: "RES-1037", customer: "Nina Flores", order: "Christening Catering", date: "Sep 16, 2026", guests: 80, status: "Completed" },
-]
+import { listStaffReservations, updateStaffReservationStatus, type StaffReservation } from "@/app/actions/customer-menu"
+import { createClient } from "@/lib/supabase/client"
 
 const columnLabels = {
   customer: "Customer",
   order: "Food order",
   date: "Event date",
-  guests: "Guests",
+  mobileNumber: "Mobile number",
   status: "Status",
 } as const
 
 type ColumnKey = keyof typeof columnLabels
+type Reservation = StaffReservation
 
 export function ReservationTable() {
-  const [reservations, setReservations] = useState(initialReservations)
+  const [reservations, setReservations] = useState<Reservation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState("All")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [updatingReservationId, setUpdatingReservationId] = useState<string | null>(null)
   const [sortColumn, setSortColumn] = useState<ColumnKey | null>(null)
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
   const [visibleColumns, setVisibleColumns] = useState<Record<ColumnKey, boolean>>({
     customer: true,
     order: true,
     date: true,
-    guests: true,
+    mobileNumber: true,
     status: true,
   })
 
+  useEffect(() => {
+    async function loadReservations() {
+      const { data: userData, error: userError } = await createClient().auth.getUser()
+      if (userError || !userData.user) {
+        setError("Please sign in to view reservations.")
+        setLoading(false)
+        return
+      }
+      const result = await listStaffReservations(userData.user.id, userData.user.email ?? null)
+      setReservations(result.data)
+      setError(result.error)
+      setLoading(false)
+    }
+    loadReservations()
+  }, [])
   const filteredReservations = useMemo(() => {
     const searchTerm = search.toLowerCase().trim()
     return reservations.filter((reservation) => {
@@ -88,10 +100,39 @@ export function ReservationTable() {
   }
 
   function refreshReservations() {
-    setReservations([...initialReservations])
+    setLoading(true)
+    createClient().auth.getUser().then(async ({ data: userData }) => {
+      if (!userData.user) {
+        setError("Please sign in to view reservations.")
+        setLoading(false)
+        return
+      }
+      const result = await listStaffReservations(userData.user.id, userData.user.email ?? null)
+      setReservations(result.data)
+      setError(result.error)
+      setLoading(false)
+    })
     setSearch("")
     setStatus("All")
     setPage(1)
+  }
+
+  async function updateReservationStatus(id: string, nextStatus: StaffReservation["status"]) {
+    setUpdatingReservationId(id)
+    const { data: userData, error: userError } = await createClient().auth.getUser()
+    if (userError || !userData.user) {
+      setError("Please sign in to update reservations.")
+      setUpdatingReservationId(null)
+      return
+    }
+
+    const result = await updateStaffReservationStatus(userData.user.id, userData.user.email ?? null, id, nextStatus)
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setReservations((current) => current.map((reservation) => reservation.id === id ? { ...reservation, status: nextStatus } : reservation))
+    }
+    setUpdatingReservationId(null)
   }
 
   return (
@@ -151,21 +192,49 @@ export function ReservationTable() {
                 {visibleColumns.customer && <SortableHeader column="customer" label="Customer" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />}
                 {visibleColumns.order && <SortableHeader column="order" label="Food order" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />}
                 {visibleColumns.date && <SortableHeader column="date" label="Event date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />}
-                {visibleColumns.guests && <SortableHeader column="guests" label="Guests" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} align="right" />}
+                {visibleColumns.mobileNumber && <SortableHeader column="mobileNumber" label="Mobile number" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />}
                 {visibleColumns.status && <SortableHeader column="status" label="Status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />}
+                <th className="h-10 w-14 px-4 text-right font-medium text-muted-foreground"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
-              {paginatedReservations.map((reservation) => (
+              {loading && <tr><td colSpan={6} className="h-24 text-center text-muted-foreground">Loading reservations...</td></tr>}
+              {!loading && error && <tr><td colSpan={6} className="h-24 text-center text-destructive">{error}</td></tr>}
+              {!loading && !error && paginatedReservations.map((reservation) => (
                 <tr key={reservation.id} className="border-b last:border-0 hover:bg-muted/30">
-                  {visibleColumns.customer && <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><Avatar className="size-8"><AvatarFallback>{reservation.customer.split(" ").map((name) => name[0]).join("")}</AvatarFallback></Avatar>{reservation.customer}</span></td>}
+                  {visibleColumns.customer && <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><Avatar className="size-8"><AvatarFallback>{reservation.customer.split(" ").map((name) => name[0]).join("")}</AvatarFallback></Avatar><span><span className="block font-medium">{reservation.customer}</span><span className="block text-xs text-muted-foreground">{reservation.email}</span></span></span></td>}
                   {visibleColumns.order && <td className="px-4 py-3">{reservation.order}</td>}
-                  {visibleColumns.date && <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><CalendarDaysIcon className="size-4 text-muted-foreground" />{reservation.date}</span></td>}
-                  {visibleColumns.guests && <td className="px-4 py-3 text-right">{reservation.guests}</td>}
+                  {visibleColumns.date && <td className="px-4 py-3"><span className="inline-flex items-center gap-2 whitespace-nowrap"><CalendarDaysIcon className="size-4 text-muted-foreground" />{reservation.date}</span></td>}
+                  {visibleColumns.mobileNumber && <td className="px-4 py-3">{reservation.mobileNumber}</td>}
                   {visibleColumns.status && <td className="px-4 py-3"><Badge variant={reservation.status === "Confirmed" || reservation.status === "Completed" ? "default" : "secondary"}>{reservation.status}</Badge></td>}
+                  <td className="px-4 py-3 text-right">
+                    <DropdownMenuTrigger>
+                      <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${reservation.id}`}>
+                        <MoreHorizontalIcon />
+                      </Button>
+                      <DropdownMenu placement="bottom end">
+                        <DropdownMenuLabel>Reservation actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          id={`${reservation.id}-confirm`}
+                          isDisabled={updatingReservationId === reservation.id || reservation.status === "Confirmed" || reservation.status === "Completed"}
+                          onAction={() => updateReservationStatus(reservation.id, "Confirmed")}
+                        >
+                          Confirm
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          id={`${reservation.id}-done`}
+                          isDisabled={updatingReservationId === reservation.id || reservation.status === "Completed"}
+                          onAction={() => updateReservationStatus(reservation.id, "Completed")}
+                        >
+                          Complete
+                        </DropdownMenuItem>
+                      </DropdownMenu>
+                    </DropdownMenuTrigger>
+                  </td>
                 </tr>
               ))}
-              {sortedReservations.length === 0 && <tr><td colSpan={5} className="h-24 text-center text-muted-foreground">No reservations found.</td></tr>}
+              {!loading && !error && sortedReservations.length === 0 && <tr><td colSpan={6} className="h-24 text-center text-muted-foreground">No reservations found.</td></tr>}
             </tbody>
           </table>
         </div>

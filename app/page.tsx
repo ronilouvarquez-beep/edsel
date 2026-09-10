@@ -15,6 +15,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react"
+import { ConferenceHero } from "@/components/conference-hero"
 
 const occasions = [
   {
@@ -123,79 +124,10 @@ const steps = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white antialiased [font-family:var(--font-geist-sans),ui-sans-serif,system-ui]">
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex size-7 items-center justify-center rounded-full bg-white text-[13px] font-semibold tracking-tight text-black">
-              E
-            </span>
-            <span className="text-sm font-medium tracking-tight">Edsel&apos;s</span>
-          </Link>
+    <>
+      <ConferenceHero />
 
-          <nav className="hidden items-center gap-7 text-sm text-white/70 md:flex">
-            <a href="#occasions" className="transition-colors hover:text-white">Occasions</a>
-            <a href="#services" className="transition-colors hover:text-white">Services</a>
-            <a href="#design" className="transition-colors hover:text-white">Design</a>
-            <Link href="/admin/menu" className="transition-colors hover:text-white">Menu</Link>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="hidden px-3 py-1.5 text-sm text-white/70 transition-colors hover:text-white sm:inline">
-              Sign in
-            </Link>
-            <Link
-              href="/admin/reservations"
-              className="inline-flex h-8 items-center rounded-full bg-white px-3.5 text-sm font-medium text-black transition-opacity hover:opacity-80"
-            >
-              Book now
-            </Link>
-          </div>
-        </div>
-        <nav className="flex items-center justify-center gap-5 border-t border-white/10 px-4 py-2 text-xs text-white/60 md:hidden">
-          <a href="#occasions" className="hover:text-white">Occasions</a>
-          <a href="#services" className="hover:text-white">Services</a>
-          <a href="#design" className="hover:text-white">Design</a>
-          <Link href="/admin/menu" className="hover:text-white">Menu</Link>
-        </nav>
-      </header>
-
-      <section className="relative overflow-hidden">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]"
-        />
-        <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 pb-20 pt-24 text-center sm:px-6 sm:pt-32 lg:pb-28 lg:pt-36">
-          <p className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/70">
-            <SparklesIcon className="size-3.5 text-[#e8a87c]" />
-            Cake shop &amp; catering · Kapatagan
-          </p>
-          <h1 className="text-[clamp(2.75rem,9vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.05em]">
-            Serbisyo ug Lami
-            <br />
-            <span className="text-white/45">Para sa Tanan.</span>
-          </h1>
-          <p className="mt-6 max-w-xl text-base leading-7 text-white/55 sm:text-lg">
-            Cakes and full catering for birthdays, weddings, baptisms, and gatherings — designed for the people and the moment.
-          </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-            <Link
-              href="/admin/reservations"
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-sm font-medium text-black transition-opacity hover:opacity-80"
-            >
-              Plan your celebration
-              <ArrowRightIcon className="size-4" />
-            </Link>
-            <Link
-              href="/admin/menu"
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 text-sm font-medium text-white transition-colors hover:border-white/30 hover:bg-white/10"
-            >
-              Explore the menu
-            </Link>
-          </div>
-        </div>
-      </section>
-
+      <main className="min-h-screen bg-black text-white antialiased [font-family:var(--font-geist-sans),ui-sans-serif,system-ui]">
       <section className="border-y border-white/10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-4 py-5 text-xs font-medium uppercase tracking-[0.18em] text-white/35 sm:px-6">
           <span>Birthday</span>
@@ -385,6 +317,7 @@ export default function Home() {
           <span>Serbisyo ug Lami Para sa Tanan</span>
         </div>
       </footer>
-    </main>
+      </main>
+    </>
   )
 }

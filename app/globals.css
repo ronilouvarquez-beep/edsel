@@ -3,6 +3,117 @@
 @import "shadcn/tailwind.css";
 @import "@photo-sphere-viewer/core/index.css";
 
+.customer-reservation-form div:has(input[type="file"]) label:has(input[required])::after,
+.customer-reservation-form div:has(input[type="file"]) label:has(textarea[required])::after {
+  position: absolute;
+  top: 0;
+  color: var(--destructive);
+  content: "*";
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+.customer-reservation-form div:has(input[type="file"]) label:has(input[required]),
+.customer-reservation-form div:has(input[type="file"]) label:has(textarea[required]) {
+  position: relative;
+}
+
+.customer-reservation-form div:has(input[type="file"]) label:nth-of-type(3)::after {
+  left: 14rem;
+}
+
+.customer-reservation-form .flex.min-w-0.flex-1.justify-end.overflow-x-auto {
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  touch-action: pan-x;
+}
+
+.customer-reservation-form .flex.min-w-0.flex-1.justify-end.overflow-x-auto > div > button {
+  scroll-snap-align: start;
+}
+
+.customer-reservation-form div:has(input[type="file"]) label:nth-of-type(1)::after {
+  left: 8.75rem;
+}
+
+.customer-reservation-form div:has(input[type="file"]) label:nth-of-type(2)::after {
+  left: 9rem;
+}
+
+.customer-reservation-form div:has(input[type="file"]) label:nth-of-type(4)::after {
+  left: 11rem;
+}
+
+.customer-reservation-form .required-field-mark {
+  color: var(--destructive);
+  display: inline;
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+[aria-labelledby="payment-notice-title"] .mt-4.rounded-lg.border.bg-background::before {
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--foreground);
+  content: "Scan to pay";
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+[aria-labelledby="payment-notice-title"] .mt-4.rounded-lg.border.bg-background > .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+[aria-labelledby="payment-notice-title"] .mt-4.rounded-lg.border.bg-background > .grid > div:first-child {
+  display: none;
+}
+
+[aria-labelledby="payment-notice-title"] .mt-4.rounded-lg.border.bg-background > .grid > div:nth-child(2),
+[aria-labelledby="payment-notice-title"] .mt-4.rounded-lg.border.bg-background > .grid > div:nth-child(3) {
+  border-top: 0;
+  border-left: 0;
+  padding: 0.5rem;
+}
+
+[aria-labelledby="payment-notice-title"] .mt-4.rounded-lg.border.bg-background > .grid > div:nth-child(2) .relative::before {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--muted-foreground);
+  content: "GCash account name: Edsel Granaderos\A GCash number: 09616203914";
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.mb-4.grid.rounded-lg.border.bg-background > div + div {
+  border-left: 1px solid var(--border);
+  padding-left: 1rem;
+}
+
+@media (max-width: 640px) {
+  .mb-4.grid.rounded-lg.border.bg-background > div + div {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+    padding-top: 0.75rem;
+    padding-left: 0;
+  }
+
+  [aria-labelledby="payment-notice-title"] .mt-4.rounded-lg.border.bg-background > .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+[role="dialog"] .mt-6.grid.gap-2.border-t.pt-4.text-sm::before {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--muted-foreground);
+  content: "Total price for selected items";
+  font-size: 0.75rem;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

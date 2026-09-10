@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { listStaffTaskTrackers, type StaffTaskTracker } from "@/app/actions/customer-menu";
 import {
   ArrowDownIcon,
   ArrowUpDownIcon,
@@ -23,17 +24,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
 
-type TrackerStep = "Confirm" | "Preparing" | "Ready" | "Completed";
-type ReservationTracker = {
-  id: string;
-  customer: string;
-  order: string;
-  date: string;
-  guests: number;
-  status: "Pending" | "Confirmed" | "Preparing" | "Completed";
-  step: TrackerStep;
-};
+type TrackerStep = "Confirm" | "Preparing" | "Ready" | "Completed" | null;
+type ReservationTracker = StaffTaskTracker;
 
 const trackerSteps: TrackerStep[] = [
   "Confirm",
@@ -41,65 +35,10 @@ const trackerSteps: TrackerStep[] = [
   "Ready",
   "Completed",
 ];
-const initialTrackers: ReservationTracker[] = [
-  {
-    id: "RES-1042",
-    customer: "Maria Santos",
-    order: "Chocolate Dedication Cake",
-    date: "Sep 06, 2026",
-    guests: 12,
-    status: "Confirmed",
-    step: "Ready",
-  },
-  {
-    id: "RES-1041",
-    customer: "Juan Dela Cruz",
-    order: "Birthday Dessert Table",
-    date: "Sep 07, 2026",
-    guests: 30,
-    status: "Pending",
-    step: "Confirm",
-  },
-  {
-    id: "RES-1040",
-    customer: "Ana Reyes",
-    order: "Wedding Catering Package",
-    date: "Sep 10, 2026",
-    guests: 120,
-    status: "Confirmed",
-    step: "Preparing",
-  },
-  {
-    id: "RES-1039",
-    customer: "Carlo Garcia",
-    order: "Red Velvet Custom Cake",
-    date: "Sep 12, 2026",
-    guests: 20,
-    status: "Preparing",
-    step: "Preparing",
-  },
-  {
-    id: "RES-1038",
-    customer: "Liza Tan",
-    order: "Corporate Snack Boxes",
-    date: "Sep 14, 2026",
-    guests: 55,
-    status: "Pending",
-    step: "Confirm",
-  },
-  {
-    id: "RES-1037",
-    customer: "Nina Flores",
-    order: "Christening Catering",
-    date: "Sep 16, 2026",
-    guests: 80,
-    status: "Completed",
-    step: "Completed",
-  },
-];
-
 export default function StaffTasksPage() {
-  const [trackers, setTrackers] = useState(initialTrackers);
+  const [trackers, setTrackers] = useState<ReservationTracker[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | TrackerStep>("All");
   const [selectedDate, setSelectedDate] = useState("");
@@ -110,68 +49,55 @@ export default function StaffTasksPage() {
     "customer" | "order" | "date" | "guests" | "status" | null
   >(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  useEffect(() => {
+    async function loadTrackers() {
+      const { data: userData, error: userError } = await createClient().auth.getUser();
+      if (userError || !userData.user) {
+        setError("Please sign in to view task trackers.");
+        setLoading(false);
+        return;
+      }
+      const result = await listStaffTaskTrackers(userData.user.id, userData.user.email ?? null);
+      setTrackers(result.data);
+      setError(result.error);
+      setLoading(false);
+    }
+    loadTrackers();
+  }, []);
+
   const filteredTrackers = useMemo(
-    () =>
-      trackers.filter((tracker) => {
-        const matchesSearch =
-          `${tracker.customer} ${tracker.order} ${tracker.id}`
-            .toLowerCase()
-            .includes(search.toLowerCase());
-        const matchesStep = filter === "All" || tracker.step === filter;
-        const matchesDate =
-          !selectedDate ||
-          new Date(tracker.date).toISOString().slice(0, 10) === selectedDate;
-        return matchesSearch && matchesStep && matchesDate;
-      }),
+    () => trackers.filter((tracker) => {
+      const matchesSearch = `${tracker.customer} ${tracker.order} ${tracker.id}`.toLowerCase().includes(search.toLowerCase());
+      const matchesStep = filter === "All" || tracker.step === filter;
+      const matchesDate = !selectedDate || new Date(tracker.date).toISOString().slice(0, 10) === selectedDate;
+      return matchesSearch && matchesStep && matchesDate;
+    }),
     [filter, search, selectedDate, trackers],
   );
-  const sortedTrackers = useMemo(
-    () =>
-      sortColumn
-        ? [...filteredTrackers].sort((left, right) => {
-            const leftValue = String(left[sortColumn]);
-            const rightValue = String(right[sortColumn]);
-            const result = leftValue.localeCompare(rightValue, undefined, {
-              numeric: true,
-            });
-            return sortDirection === "asc" ? result : -result;
-          })
-        : filteredTrackers,
-    [filteredTrackers, sortColumn, sortDirection],
-  );
+  const sortedTrackers = useMemo(() => sortColumn
+    ? [...filteredTrackers].sort((left, right) => {
+        const result = String(left[sortColumn]).localeCompare(String(right[sortColumn]), undefined, { numeric: true });
+        return sortDirection === "asc" ? result : -result;
+      })
+    : filteredTrackers, [filteredTrackers, sortColumn, sortDirection]);
   const pageCount = Math.max(1, Math.ceil(sortedTrackers.length / pageSize));
-  const visibleTrackers = sortedTrackers.slice(
-    (page - 1) * pageSize,
-    page * pageSize,
-  );
+  const visibleTrackers = sortedTrackers.slice((page - 1) * pageSize, page * pageSize);
 
   function setTrackerStep(id: string, step: TrackerStep) {
-    setTrackers((current) =>
-      current.map((tracker) =>
-        tracker.id === id ? { ...tracker, step } : tracker,
-      ),
-    );
+    setTrackers((current) => current.map((tracker) => tracker.id === id ? { ...tracker, step } : tracker));
   }
 
   function advanceTracker(id: string) {
-    setTrackers((current) =>
-      current.map((tracker) => {
-        const nextIndex = Math.min(
-          trackerSteps.indexOf(tracker.step) + 1,
-          trackerSteps.length - 1,
-        );
-        return tracker.id === id
-          ? { ...tracker, step: trackerSteps[nextIndex] }
-          : tracker;
-      }),
-    );
+    setTrackers((current) => current.map((tracker) => {
+      if (tracker.id !== id) return tracker;
+      const nextIndex = Math.min(trackerSteps.indexOf(tracker.step) + 1, trackerSteps.length - 1);
+      return { ...tracker, step: trackerSteps[nextIndex] };
+    }));
   }
 
   function sortBy(column: typeof sortColumn) {
     if (!column) return;
-    setSortDirection(
-      sortColumn === column && sortDirection === "asc" ? "desc" : "asc",
-    );
+    setSortDirection(sortColumn === column && sortDirection === "asc" ? "desc" : "asc");
     setSortColumn(column);
     setPage(1);
   }
@@ -341,14 +267,6 @@ export default function StaffTasksPage() {
                           onSort={sortBy}
                         />
                         <SortableHeader
-                          label="Guests"
-                          column="guests"
-                          sortColumn={sortColumn}
-                          sortDirection={sortDirection}
-                          onSort={sortBy}
-                          align="right"
-                        />
-                        <SortableHeader
                           label="Status"
                           column="status"
                           sortColumn={sortColumn}
@@ -360,7 +278,9 @@ export default function StaffTasksPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {visibleTrackers.map((tracker) => (
+                      {loading && <tr><td colSpan={6} className="h-24 text-center text-muted-foreground">Loading task trackers...</td></tr>}
+                      {!loading && error && <tr><td colSpan={6} className="h-24 text-center text-destructive">{error}</td></tr>}
+                      {!loading && !error && visibleTrackers.map((tracker) => (
                         <tr
                           key={tracker.id}
                           className="border-b last:border-0 hover:bg-muted/30"
@@ -379,21 +299,18 @@ export default function StaffTasksPage() {
                                 <span className="block font-medium">
                                   {tracker.customer}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {tracker.id}
+                                <span className="block text-[10px] text-muted-foreground">
+                                  {tracker.email}
                                 </span>
                               </span>
                             </span>
                           </td>
                           <td className="px-3 py-2">{tracker.order}</td>
                           <td className="px-3 py-2">
-                            <span className="inline-flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap">
                               <CalendarDaysIcon className="size-3.5 text-muted-foreground" />
                               {tracker.date}
                             </span>
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {tracker.guests}
                           </td>
                           <td className="px-3 py-2">
                             <Badge
@@ -450,7 +367,7 @@ export default function StaffTasksPage() {
                           <td className="px-3 py-2">
                             <button
                               type="button"
-                              disabled={tracker.step === "Completed"}
+                              disabled={tracker.status === "Pending" || tracker.step === "Completed"}
                               onClick={() => advanceTracker(tracker.id)}
                               className="rounded border px-2 py-1 text-[10px] font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                             >
@@ -459,7 +376,7 @@ export default function StaffTasksPage() {
                           </td>
                         </tr>
                       ))}
-                      {visibleTrackers.length === 0 && (
+                      {!loading && !error && visibleTrackers.length === 0 && (
                         <tr>
                           <td
                             colSpan={7}

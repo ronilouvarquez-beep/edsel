@@ -29,6 +29,7 @@ const customerNav = [
   { title: "Overview", url: "/customer", icon: <HouseIcon /> },
   { title: "Browse Menu", url: "/customer/menu", icon: <MenuIcon /> },
   { title: "Reservation", url: "/customer/reservations", icon: <CalendarCheckIcon /> },
+  { title: "My Reservation", url: "/customer/my-reservation", icon: <CalendarCheckIcon /> },
   { title: "Track my Order", url: "/customer/track", icon: <ClipboardListIcon /> },
   { title: "Messages", url: "/customer/messages", icon: <MessageCircleHeartIcon /> },
 ]

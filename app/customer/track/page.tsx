@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { listCustomerOrderTrackers, type CustomerOrderTracker } from "@/app/actions/customer-menu";
+import { createClient } from "@/lib/supabase/client";
 
 import {
   ArrowDownIcon,
@@ -27,15 +29,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type OrderStep = "Confirm" | "Preparing" | "Ready" | "Completed";
-type Order = {
-  id: string;
-  order: string;
-  date: string;
-  guests: number;
-  status: string;
-  step: OrderStep;
-};
+type OrderStep = "Confirm" | "Preparing" | "Ready" | "Completed" | null;
+type Order = CustomerOrderTracker;
 
 const steps: OrderStep[] = ["Confirm", "Preparing", "Ready", "Completed"];
 const stepIcons = [
@@ -44,30 +39,29 @@ const stepIcons = [
   PackageCheckIcon,
   CheckCircle2Icon,
 ];
-const orders: Order[] = [
-  {
-    id: "RES-1042",
-    order: "Chocolate Dedication Cake",
-    date: "Sep 06, 2026",
-    guests: 12,
-    status: "Confirmed",
-    step: "Ready",
-  },
-  {
-    id: "RES-1041",
-    order: "Birthday Dessert Table",
-    date: "Sep 07, 2026",
-    guests: 30,
-    status: "Pending",
-    step: "Confirm",
-  },
-];
-
 export default function CustomerTrackPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sortColumn, setSortColumn] = useState<"order" | "date" | "guests" | "status" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  useEffect(() => {
+    async function loadOrders() {
+      const { data: userData, error: userError } = await createClient().auth.getUser();
+      if (userError || !userData.user) {
+        setError("Please sign in to track your orders.");
+        setLoading(false);
+        return;
+      }
+      const result = await listCustomerOrderTrackers(userData.user.id, userData.user.email ?? null);
+      setOrders(result.data);
+      setError(result.error);
+      setLoading(false);
+    }
+    loadOrders();
+  }, []);
   const sortedOrders = sortColumn
     ? [...orders].sort((left, right) => {
         const result = String(left[sortColumn]).localeCompare(String(right[sortColumn]), undefined, { numeric: true });
@@ -110,7 +104,6 @@ export default function CustomerTrackPage() {
                   <tr>
                     <SortableHeader label="Order" column="order" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />
                     <SortableHeader label="Event date" column="date" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />
-                    <SortableHeader label="Guests" column="guests" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} align="right" />
                     <SortableHeader label="Status" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={sortBy} />
                     <th className="px-4 py-3 font-medium">
                       Preparation progress
@@ -118,7 +111,9 @@ export default function CustomerTrackPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleOrders.map((order) => {
+                  {loading && <tr><td colSpan={4} className="h-20 text-center text-muted-foreground">Loading orders...</td></tr>}
+                  {!loading && error && <tr><td colSpan={4} className="h-20 text-center text-destructive">{error}</td></tr>}
+                  {!loading && !error && visibleOrders.map((order) => {
                     const currentIndex = steps.indexOf(order.step);
                     return (
                       <tr key={order.id} className="border-b last:border-0">
@@ -129,23 +124,15 @@ export default function CustomerTrackPage() {
                                 <ClipboardListIcon className="size-4" />
                               </AvatarFallback>
                             </Avatar>
-                            <span>
-                              <span className="block font-medium">
-                                {order.order}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {order.id}
-                              </span>
-                            </span>
+                              <span className="font-medium">{order.order}</span>
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <span className="inline-flex items-center gap-2">
+                          <span className="inline-flex items-center gap-2 whitespace-nowrap">
                             <CalendarDaysIcon className="size-4 text-muted-foreground" />
                             {order.date}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-right">{order.guests}</td>
                         <td className="px-4 py-4">
                           <Badge
                             variant={
@@ -191,9 +178,9 @@ export default function CustomerTrackPage() {
                       </tr>
                     );
                   })}
-                  {visibleOrders.length === 0 && (
+                  {!loading && !error && visibleOrders.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="h-20 text-center text-muted-foreground">No orders found.</td>
+                      <td colSpan={4} className="h-20 text-center text-muted-foreground">No orders found.</td>
                     </tr>
                   )}
                 </tbody>

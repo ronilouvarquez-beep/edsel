@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDaysIcon,
   ChevronLeftIcon,
@@ -16,50 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { listStaffScheduleReservations, type StaffScheduleReservation } from "@/app/actions/customer-menu";
+import { createClient } from "@/lib/supabase/client";
 
-type ScheduleEvent = {
-  id: number;
-  date: string;
-  title: string;
-  time: string;
-  location: string;
-  type: string;
-  notes: string;
-};
+type ScheduleEvent = StaffScheduleReservation;
 
 type CalendarView = "Day" | "Week" | "Month" | "Year";
 
 const calendarViews: CalendarView[] = ["Day", "Week", "Month", "Year"];
-
-const initialEvents: ScheduleEvent[] = [
-  {
-    id: 1,
-    date: "2026-09-01",
-    title: "National Heroes Day setup",
-    time: "9:00 AM",
-    location: "Main venue",
-    type: "Setup",
-    notes: "Prepare decoration and buffet area.",
-  },
-  {
-    id: 2,
-    date: "2026-09-05",
-    title: "Wedding catering",
-    time: "2:00 PM",
-    location: "Garden venue",
-    type: "Event",
-    notes: "Confirm buffet and venue styling.",
-  },
-  {
-    id: 3,
-    date: "2026-09-12",
-    title: "Birthday delivery",
-    time: "10:30 AM",
-    location: "Makati",
-    type: "Delivery",
-    notes: "Deliver cake and food trays.",
-  },
-];
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -88,10 +52,32 @@ function getMonthDays(month: Date) {
 
 export default function StaffSchedulePage() {
   const [month, setMonth] = useState(new Date(2026, 8, 1));
-  const [events, setEvents] = useState(initialEvents);
+  const [events, setEvents] = useState<ScheduleEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState("2026-09-05");
   const [showAdd, setShowAdd] = useState(false);
   const [calendarView, setCalendarView] = useState<CalendarView>("Month");
+
+  useEffect(() => {
+    async function loadSchedule() {
+      const { data: userData, error: userError } = await createClient().auth.getUser();
+      if (userError || !userData.user) {
+        setError("Please sign in to view the schedule.");
+        setLoading(false);
+        return;
+      }
+      const result = await listStaffScheduleReservations(userData.user.id, userData.user.email ?? null);
+      setEvents(result.data);
+      setError(result.error);
+      setLoading(false);
+      if (result.data[0]) {
+        setSelectedDate(result.data[0].date);
+        setMonth(new Date(`${result.data[0].date}T00:00:00`));
+      }
+    }
+    loadSchedule();
+  }, []);
   const days = useMemo(() => {
     const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
     const start = new Date(
@@ -154,7 +140,7 @@ export default function StaffSchedulePage() {
   function addEvent(event: Omit<ScheduleEvent, "id">) {
     setEvents((current) => [
       ...current,
-      { ...event, id: Math.max(...current.map((item) => item.id), 0) + 1 },
+      { ...event, id: crypto.randomUUID() },
     ]);
     setSelectedDate(event.date);
     setMonth(new Date(`${event.date}T00:00:00`));
@@ -227,7 +213,7 @@ export default function StaffSchedulePage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {calendarView === "Year" ? (
+              {loading ? <div className="p-12 text-center text-muted-foreground">Loading reservations...</div> : error ? <div className="p-12 text-center text-destructive">{error}</div> : calendarView === "Year" ? (
                 <div className="grid gap-x-8 gap-y-10 p-6 sm:grid-cols-2 xl:grid-cols-4">
                   {yearMonths.map((yearMonth) => {
                     const monthKey = `${yearMonth.getFullYear()}-${String(yearMonth.getMonth() + 1).padStart(2, "0")}`;
@@ -261,7 +247,7 @@ export default function StaffSchedulePage() {
                                 type="button"
                                 onClick={() => setSelectedDate(key)}
                                 aria-label={formatDate(day)}
-                                className={`mx-auto flex size-6 items-center justify-center rounded-full font-medium transition-colors hover:bg-muted ${isSelected ? "bg-red-500 text-white" : isCurrentMonth ? "text-foreground" : "text-muted-foreground/40"}`}
+                                className={`mx-auto flex size-6 items-center justify-center rounded-full font-medium transition-colors hover:bg-muted ${isSelected ? "bg-red-500 text-white" : hasEvent ? "bg-primary/15 text-primary" : isCurrentMonth ? "text-foreground" : "text-muted-foreground/40"}`}
                                 title={hasEvent ? `${monthEvents.find((event) => event.date === key)?.title}` : undefined}
                               >
                                 {day.getDate()}
@@ -291,6 +277,7 @@ export default function StaffSchedulePage() {
                   const dayEvents = events.filter(
                     (event) => event.date === key,
                   );
+                  const hasEvent = dayEvents.length > 0;
                   const isCurrentMonth = day.getMonth() === month.getMonth();
                   const isSelected = key === selectedDate;
                   return (
@@ -301,7 +288,7 @@ export default function StaffSchedulePage() {
                       className={`${calendarView === "Day" ? "min-h-96" : "min-h-28"} border-b border-r p-2 text-left transition-colors hover:bg-muted/40 ${!isCurrentMonth ? "bg-muted/20 text-muted-foreground/50" : "bg-background"} ${isSelected ? "ring-2 ring-inset ring-primary" : ""}`}
                     >
                       <span
-                        className={`flex size-7 items-center justify-center rounded-full text-sm ${key === "2026-09-05" ? "bg-destructive text-destructive-foreground" : ""}`}
+                        className={`flex size-7 items-center justify-center rounded-full text-sm ${isSelected ? "bg-destructive text-destructive-foreground" : hasEvent ? "bg-primary/15 font-semibold text-primary" : ""}`}
                       >
                         {day.getDate()}
                       </span>

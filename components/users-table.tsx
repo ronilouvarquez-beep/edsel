@@ -84,7 +84,7 @@ function toUser(row: Record<string, unknown>): User {
     email: String(row.email ?? ""),
     phone: String(row.phone_number ?? ""),
     role: toDbRole(String(row.role ?? "customer")),
-    avatar: String(row.avatar_url ?? row.avatar ?? ""),
+    avatar: String(row.profile_image ?? row.avatar_url ?? row.avatar ?? ""),
   }
 }
 
@@ -133,6 +133,7 @@ export function UsersTable() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
   const addDialogRef    = useRef<HTMLDialogElement>(null)
@@ -203,6 +204,7 @@ export function UsersTable() {
     setPasswordError("")
     setShowPassword(false)
     setShowConfirmPassword(false)
+    setProfileImageFile(null)
     if (imageInputRef.current) imageInputRef.current.value = ""
     addDialogRef.current?.showModal()
   }
@@ -237,6 +239,7 @@ export function UsersTable() {
     setPasswordError("")
     setShowPassword(false)
     setShowConfirmPassword(false)
+    setProfileImageFile(null)
     if (imageInputRef.current) imageInputRef.current.value = ""
     addDialogRef.current?.showModal()
   }
@@ -245,12 +248,14 @@ export function UsersTable() {
     const file = event.target.files?.[0]
     if (!file) return
     if (formData.imagePreview.startsWith("blob:")) URL.revokeObjectURL(formData.imagePreview)
+    setProfileImageFile(file)
     field("imagePreview", URL.createObjectURL(file))
   }
 
   function clearImage() {
     if (formData.imagePreview.startsWith("blob:")) URL.revokeObjectURL(formData.imagePreview)
     field("imagePreview", "")
+    setProfileImageFile(null)
     if (imageInputRef.current) imageInputRef.current.value = ""
   }
 
@@ -293,14 +298,20 @@ export function UsersTable() {
       return
     }
 
+    const profileImage = profileImageFile
     const payload = {
       first_name: firstName,
       middle_name: middleName || null,
       last_name: lastName,
       address: addressValue.address || get("address"),
+      street: addressValue.street,
+      province: addressValue.province,
+      municipality: addressValue.municipality,
+      barangay: addressValue.barangay,
       email,
       phone_number: get("phone"),
       role: toDbRole(get("role")),
+      profileImage,
     }
     const localUser = {
       first_name: firstName,
@@ -317,14 +328,14 @@ export function UsersTable() {
 
     if (editingId) {
       const toastId = toast.loading("Saving changes…")
-      const { error } = await updateUser(editingId, payload)
+      const { data, error } = await updateUser(editingId, payload)
 
       setSubmitting(false)
       if (error) {
         toast.error("Failed to update user.", { id: toastId, description: error })
         return
       }
-      setUsers((cur) => cur.map((u) => (u.id === editingId ? { ...u, ...localUser } : u)))
+      setUsers((cur) => cur.map((u) => (u.id === editingId ? data ? toUser(data) : { ...u, ...localUser } : u)))
       toast.success(`${fullName} updated.`, { id: toastId })
     } else {
       const toastId = toast.loading("Adding user…")
@@ -335,7 +346,7 @@ export function UsersTable() {
         toast.error("Failed to add user.", { id: toastId, description: error })
         return
       }
-      setUsers((cur) => [data ? { ...toUser(data), avatar: formData.imagePreview } : { id: crypto.randomUUID(), ...localUser }, ...cur])
+      setUsers((cur) => [data ? toUser(data) : { id: crypto.randomUUID(), ...localUser }, ...cur])
       setPage(1)
       toast.success(`${fullName} added as ${ROLE_LABELS[payload.role]}.`, { id: toastId })
     }
