@@ -24,17 +24,36 @@
 
 .customer-reservation-form .flex.min-w-0.flex-1.justify-end.overflow-x-auto {
   display: block;
+  max-width: 100%;
   min-width: 0;
   overflow-x: scroll;
   scroll-snap-type: x proximity;
-  scrollbar-width: thin;
+  scrollbar-width: auto;
   touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
 }
 
+.customer-reservation-form .flex.min-w-0.flex-1.justify-end.overflow-x-auto::-webkit-scrollbar {
+  height: 0.4rem;
+}
+
+.customer-reservation-form .flex.min-w-0.flex-1.justify-end.overflow-x-auto::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--muted-foreground);
+}
+
+.customer-reservation-form .flex.min-w-0.flex-1.justify-end.overflow-x-auto > div {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  flex-wrap: nowrap;
+  padding-inline: 0.25rem;
+}
+
 .customer-reservation-form .flex.min-w-0.flex-1.justify-end.overflow-x-auto > div > button {
   display: inline-flex;
+  flex: 0 0 auto;
   scroll-snap-align: start;
 }
 
